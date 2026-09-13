@@ -1,0 +1,6 @@
+.env
+local-mcp-server.sh
+credentials.json
+token.json
+__pycache__/
+venv/
