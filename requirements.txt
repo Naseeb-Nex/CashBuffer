@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+sqlalchemy[asyncio]
+asyncpg
+python-telegram-bot
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+pydantic-settings
+alembic
+kinde-python-sdk
+pyjwt
+cryptography
+httpx
+langgraph
+langchain
+litellm
