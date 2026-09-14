@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.exc import IntegrityError
 
 from app.db.database import get_db
 from app.db.models import Transaction, User, Category, TransactionStatus
@@ -43,7 +44,10 @@ async def ingest_user(
         user.email = data.email
         if data.telegram_chat_id:
             user.telegram_chat_id = data.telegram_chat_id
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        raise HTTPException(status_code=400, detail="Email already in use")
     return {"status": "ok", "user_id": user_id}
 
 @router.post("/transactions")
@@ -55,8 +59,9 @@ async def ingest_transactions(
     """Bulk ingest purely parsed transactions."""
     ingested = []
     for tx_data in transactions:
-        tx = await create_transaction_from_parsed(db, user_id, tx_data.model_dump())
+        tx = await create_transaction_from_parsed(db, user_id, tx_data.model_dump(), commit=False)
         ingested.append(tx.id)
+    await db.commit()
     return {"status": "ok", "ingested_count": len(ingested), "ids": ingested}
 
 @router.post("/categories")
