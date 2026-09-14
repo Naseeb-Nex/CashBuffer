@@ -11,7 +11,7 @@ router = APIRouter(tags=["Transactions"])
 
 @router.get("/transactions", summary="Get user transactions")
 async def get_transactions(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),  # noqa: B008
     user_id: str = Depends(get_current_user),
 ) -> list[dict]:
     stmt = select(Transaction).where(Transaction.user_id == user_id)
