@@ -42,7 +42,7 @@ async def ingest_user(
         db.add(user)
     else:
         user.email = data.email
-        if data.telegram_chat_id:
+        if data.telegram_chat_id is not None:
             user.telegram_chat_id = data.telegram_chat_id
     try:
         await db.commit()
@@ -73,6 +73,14 @@ async def ingest_categories(
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk ingest categories."""
+    parent_ids = {cat_data.parent_id for cat_data in categories if cat_data.parent_id is not None}
+    if parent_ids:
+        result = await db.execute(select(Category.id).where(Category.id.in_(parent_ids), Category.user_id == user_id))
+        valid_parent_ids = set(result.scalars().all())
+        for pid in parent_ids:
+            if pid not in valid_parent_ids:
+                raise HTTPException(status_code=403, detail=f"Parent category {pid} not found or does not belong to user")
+
     new_cats = []
     for cat_data in categories:
         cat = Category(
@@ -82,5 +90,8 @@ async def ingest_categories(
         )
         db.add(cat)
         new_cats.append(cat)
+
+    await db.flush()
+    ingested_ids = [cat.id for cat in new_cats]
     await db.commit()
-    return {"status": "ok", "ingested_count": len(new_cats)}
+    return {"status": "ok", "ingested_count": len(new_cats), "ids": ingested_ids}
