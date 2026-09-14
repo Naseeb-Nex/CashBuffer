@@ -3,7 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Transaction, TransactionStatus
 
 
-async def create_transaction_from_parsed(db: AsyncSession, user_id: str, parsed_data: dict) -> Transaction:
+async def create_transaction_from_parsed(
+    db: AsyncSession, user_id: str, parsed_data: dict, commit: bool = True
+) -> Transaction:
     """
     Inserts a newly parsed bank alert into the multi-tenant ledger.
     Sets status to PARSED awaiting the LangGraph Agent loop.
@@ -15,9 +17,10 @@ async def create_transaction_from_parsed(db: AsyncSession, user_id: str, parsed_
         is_inflow=parsed_data["is_inflow"],
         record_date=parsed_data["record_date"],
         vendor_raw=parsed_data["vendor_raw"],
-        status=TransactionStatus.PARSED
+        status=TransactionStatus.PARSED,
     )
     db.add(new_tx)
-    await db.commit()
-    await db.refresh(new_tx)
+    if commit:
+        await db.commit()
+        await db.refresh(new_tx)
     return new_tx

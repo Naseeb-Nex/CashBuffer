@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
+
 class BaseChatConnector(ABC):
     """
     Abstract base class for messaging app connectors (Telegram, WhatsApp, etc.).
@@ -14,7 +15,9 @@ class BaseChatConnector(ABC):
         """Sends a text message to the specified chat."""
 
     @abstractmethod
-    async def ask_for_category(self, transaction_id: str, vendor_name: str, amount: str) -> str:
+    async def ask_for_category(
+        self, transaction_id: str, vendor_name: str, amount: str
+    ) -> str:
         """
         Sends an interactive prompt asking the user for a category.
         Returns the category name chosen by the user.
