@@ -8,8 +8,10 @@ from app.core.config import settings
 db_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 db_url = db_url.split("?")[0]  # Strip the ?sslmode query params
 
+connect_args = {"ssl": "require"} if "postgresql" in db_url else {}
+
 # Create the async engine for FastAPI + Neon DB
-engine = create_async_engine(db_url, echo=False, connect_args={"ssl": "require"})
+engine = create_async_engine(db_url, echo=False, connect_args=connect_args)
 
 # Session factory bound to engine
 AsyncSessionLocal = async_sessionmaker(
