@@ -1,10 +1,11 @@
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from typing import List
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.auth import get_current_user
 from app.db.database import get_db
 from app.db.models import Transaction
-from app.api.auth import get_current_user
 
 router = APIRouter(tags=["Transactions"])
 
@@ -12,7 +13,7 @@ router = APIRouter(tags=["Transactions"])
 async def get_transactions(
     db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_current_user),
-) -> List[dict]:
+) -> list[dict]:
     stmt = select(Transaction).where(Transaction.user_id == user_id)
     result = await db.execute(stmt)
     transactions = result.scalars().all()

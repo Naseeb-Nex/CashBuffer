@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import jwt
-from typing import Dict, Any
+from typing import Any
+
 import httpx
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 from app.core.config import settings
 
 router = APIRouter()
@@ -11,7 +13,7 @@ security = HTTPBearer()
 # We will cache the JWKS in memory so we don't hit the Kinde API on every request.
 _JWKS = None
 
-async def get_jwks() -> Dict[str, Any]:
+async def get_jwks() -> dict[str, Any]:
     global _JWKS
     if _JWKS is None:
         async with httpx.AsyncClient() as client:

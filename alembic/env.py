@@ -1,8 +1,10 @@
 import asyncio
 from logging.config import fileConfig
+
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
 from alembic import context
 
 config = context.config
@@ -11,10 +13,11 @@ if config.config_file_name is not None:
 
 import sys
 from os.path import abspath, dirname
+
 sys.path.insert(0, dirname(dirname(abspath(__file__))))
-from app.db.database import Base
-from app.db.models import *  
 from app.core.config import settings
+from app.db.database import Base
+from app.db.models import *
 
 target_metadata = Base.metadata
 
