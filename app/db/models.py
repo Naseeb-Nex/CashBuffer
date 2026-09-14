@@ -1,8 +1,20 @@
 import enum
-from sqlalchemy import Column, String, Integer, Float, Boolean, Date, ForeignKey, DateTime, Enum
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+
 from app.db.database import Base
+
 
 class TransactionStatus(str, enum.Enum):
     PARSED = "parsed"              # Raw from email, needs categorization attempt
