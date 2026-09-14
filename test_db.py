@@ -1,6 +1,8 @@
 import asyncio
-from app.db.database import engine, Base
+
+from app.db.database import Base, engine
 from app.db.models import *
+
 
 async def init_db():
     print("starting tables create")

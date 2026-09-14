@@ -1,9 +1,16 @@
 import asyncio
+
 from app.db.database import AsyncSessionLocal
-from app.email.watcher import get_gmail_service, search_recent_bank_alerts, get_email_body, mark_as_read
 from app.email.parser import AxisBankParser
+from app.email.watcher import (
+    get_email_body,
+    get_gmail_service,
+    mark_as_read,
+    search_recent_bank_alerts,
+)
 from app.services.transactions import create_transaction_from_parsed
 from scripts.gmail_auth import authenticate_gmail
+
 
 async def run_email_ingestion_loop(user_id: str):
     """
@@ -46,7 +53,7 @@ async def run_email_ingestion_loop(user_id: str):
             else:
                 fail_count += 1
                 
-    print(f"\n--- Ingestion Complete ---")
+    print("\n--- Ingestion Complete ---")
     print(f"Valid Saves: {success_count} | Parse Fails: {fail_count}")
 
 if __name__ == "__main__":

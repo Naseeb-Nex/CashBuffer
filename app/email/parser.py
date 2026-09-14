@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Any
+
 
 class AxisBankParser:
     """
@@ -20,7 +21,7 @@ class AxisBankParser:
     )
 
     @classmethod
-    def parse(cls, body: str) -> Optional[Dict[str, Any]]:
+    def parse(cls, body: str) -> dict[str, Any] | None:
         body = body.strip()
         
         # Check debit first
@@ -36,7 +37,7 @@ class AxisBankParser:
         return None
 
     @staticmethod
-    def _build_payload(match: re.Match, is_inflow: bool) -> Dict[str, Any]:
+    def _build_payload(match: re.Match, is_inflow: bool) -> dict[str, Any]:
         amount_str = match.group('amount')
         date_str = match.group('date')
         vendor_raw = match.group('vendor').strip()
