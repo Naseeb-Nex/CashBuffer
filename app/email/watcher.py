@@ -1,12 +1,13 @@
 import base64
-from typing import List, Dict, Any, Optional
+
 from googleapiclient.discovery import build
+
 
 def get_gmail_service(creds):
     """Builds the Gmail service using provided credentials."""
     return build('gmail', 'v1', credentials=creds)
 
-def search_recent_bank_alerts(service, sender_email: str = "alerts@axis.bank.in", newer_than: str = "2m", limit: int = 500) -> List[Dict[str, str]]:
+def search_recent_bank_alerts(service, sender_email: str = "alerts@axis.bank.in", newer_than: str = "2m", limit: int = 500) -> list[dict[str, str]]:
     """
     Finds alert emails from the specified bank.
     Using 'newer_than:2m' pulls all history from the last 2 months.
@@ -17,7 +18,7 @@ def search_recent_bank_alerts(service, sender_email: str = "alerts@axis.bank.in"
     results = service.users().messages().list(userId='me', q=query, maxResults=limit).execute()
     return results.get('messages', [])
 
-def get_email_body(service, msg_id: str) -> Optional[str]:
+def get_email_body(service, msg_id: str) -> str | None:
     """
     Fetches the full email message and decodes the plain text body.
     """
@@ -48,6 +49,6 @@ def mark_as_read(service, msg_id: str):
             id=msg_id, 
             body={'removeLabelIds': ['UNREAD']}
         ).execute()
-    except Exception as e:
+    except Exception:
         # If it was already read, it might throw an error gracefully ignore
         pass
