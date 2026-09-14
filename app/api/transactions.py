@@ -1,4 +1,3 @@
-
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
@@ -12,6 +11,7 @@ from app.db.models import Transaction, TransactionStatus
 
 router = APIRouter(tags=["Transactions"])
 
+
 class TransactionResponse(BaseModel):
     id: int
     amount: float
@@ -24,7 +24,12 @@ class TransactionResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-@router.get("/transactions", summary="Get user transactions", response_model=list[TransactionResponse])
+
+@router.get(
+    "/transactions",
+    summary="Get user transactions",
+    response_model=list[TransactionResponse],
+)
 async def get_transactions(
     db: AsyncSession = Depends(get_db),  # noqa: B008
     user_id: str = Depends(get_current_user),
