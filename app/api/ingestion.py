@@ -57,12 +57,14 @@ async def ingest_transactions(
     db: AsyncSession = Depends(get_db)
 ):
     """Bulk ingest purely parsed transactions."""
-    ingested = []
+    ingested_txs = []
     for tx_data in transactions:
         tx = await create_transaction_from_parsed(db, user_id, tx_data.model_dump(), commit=False)
-        ingested.append(tx.id)
+        ingested_txs.append(tx)
+    await db.flush()
+    ingested_ids = [tx.id for tx in ingested_txs]
     await db.commit()
-    return {"status": "ok", "ingested_count": len(ingested), "ids": ingested}
+    return {"status": "ok", "ingested_count": len(ingested_ids), "ids": ingested_ids}
 
 @router.post("/categories")
 async def ingest_categories(
