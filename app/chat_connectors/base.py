@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
+
 class BaseChatConnector(ABC):
     """
     Abstract base class for messaging app connectors (Telegram, WhatsApp, etc.).
