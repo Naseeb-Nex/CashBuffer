@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     TELEGRAM_BOT_TOKEN: str = ""
     # Used for encrypting BYO-LLM API keys at rest. (Requires a 32-byte url-safe base64-encoded bytes string)
-    ENCRYPTION_KEY: str = "sf8g9SZAT2lW7CHIgD3j5EzImynJZjlJ6-P8JhFN_OI=="
+    ENCRYPTION_KEY: str
 
     # Kinde Configurations
     KINDE_DOMAIN: str = ""
