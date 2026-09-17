@@ -1,4 +1,5 @@
 import functools
+
 from cryptography.fernet import Fernet
 
 from app.core.config import settings
