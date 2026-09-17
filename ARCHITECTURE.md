@@ -32,7 +32,7 @@ The financial assistant is not a chat completion - it is a graph state machine.
 ## 5. Interface Abstractions
 
 ### 5.1. Push (Telegram)
-*   **Binding:** User signs in to the web app, generates a "Telegram Binding Token", messages the Telegram bot with it, and the DB links `telegram_chat_id` -> `kinde_user_id`.
+*   **Binding:** User signs in to the web app, generates a "Telegram Binding Token", messages the Telegram bot with it, and the DB links `telegram_chat_id` -> `kinde_user_id`. Users can also disconnect their account via the `/telegram/unlink` API.
 *   **Flow:** A cron scheduler hits an internal FastAPI endpoint `POST /jobs/daily-catchup`. The system pulls `needs_review` transactions for all users, initializes their specific LLM, generates a witty prompt, and fires it via the Telegram API.
 
 ### 5.2. Pull (Generative UI Web Dashboard)
