@@ -121,6 +121,7 @@ async def create_batch_transactions(
     if auto_categorize:
         from app.db.models import VendorRule
         from app.services.categorization import matches_pattern
+
         rules_stmt = select(VendorRule).where(VendorRule.user_id == user_id)
         rules_res = await db.execute(rules_stmt)
         rules = rules_res.scalars().all()
@@ -144,15 +145,17 @@ async def create_batch_transactions(
         tx_hash = _compute_tx_hash(user_id, amount, currency, is_inflow, rec_date, vendor_raw)
 
         tx_hashes.append(tx_hash)
-        processed_items.append({
-            "original": item,
-            "record_date": rec_date,
-            "amount": amount,
-            "currency": currency,
-            "is_inflow": is_inflow,
-            "vendor_raw": vendor_raw,
-            "tx_hash": tx_hash,
-        })
+        processed_items.append(
+            {
+                "original": item,
+                "record_date": rec_date,
+                "amount": amount,
+                "currency": currency,
+                "is_inflow": is_inflow,
+                "vendor_raw": vendor_raw,
+                "tx_hash": tx_hash,
+            }
+        )
 
     existing_records = []
     if tx_hashes:
