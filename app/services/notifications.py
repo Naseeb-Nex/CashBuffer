@@ -87,31 +87,12 @@ async def process_telegram_update(db: AsyncSession, update_data: dict[str, Any])
     if not chat_id or not text:
         return {"status": "ignored", "reason": "Missing chat_id or text"}
 
-    # 1. /start <user_id> - Account Linking
     if text.startswith("/start"):
-        parts = text.split(maxsplit=1)
-        if len(parts) > 1:
-            claimed_user_id = parts[1].strip()
-            stmt = select(User).where(User.id == claimed_user_id)
-            res = await db.execute(stmt)
-            user = res.scalar_one_or_none()
-            if not user:
-                user = User(id=claimed_user_id, email=f"{claimed_user_id}@cashbuffer.local", telegram_chat_id=chat_id)
-                db.add(user)
-            else:
-                user.telegram_chat_id = chat_id
-            await db.commit()
-            await telegram_connector.send_message(
-                chat_id,
-                f"✅ Linked Telegram to CashBuffer user `{claimed_user_id}`!\nYou will now receive catch-up prompts.",
-            )
-            return {"status": "linked", "user_id": claimed_user_id, "chat_id": chat_id}
-        else:
-            await telegram_connector.send_message(
-                chat_id,
-                "👋 Welcome to CashBuffer!\nTo link your account, use `/start <your_user_id>` from your dashboard.",
-            )
-            return {"status": "prompted_link"}
+        await telegram_connector.send_message(
+            chat_id,
+            "👋 Welcome to CashBuffer!\nTo link your account, use the *Link Telegram* option in your CashBuffer dashboard.",
+        )
+        return {"status": "prompted_link"}
 
     # Find user by chat_id
     stmt = select(User).where(User.telegram_chat_id == chat_id)
@@ -120,7 +101,7 @@ async def process_telegram_update(db: AsyncSession, update_data: dict[str, Any])
     if not user:
         await telegram_connector.send_message(
             chat_id,
-            "⚠️ Your Telegram is not linked to any CashBuffer account yet.\nUse `/start <your_user_id>` to connect.",
+            "⚠️ Your Telegram is not linked to any CashBuffer account yet.\nUse the *Link Telegram* option in your CashBuffer dashboard to connect.",
         )
         return {"status": "unlinked_chat"}
 
