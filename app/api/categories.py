@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
@@ -40,6 +40,12 @@ async def create_category(
     db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_current_user),
 ):
+    if payload.parent_id is not None:
+        parent_stmt = select(Category).where(Category.id == payload.parent_id, Category.user_id == user_id)
+        parent_res = await db.execute(parent_stmt)
+        if not parent_res.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Parent category not found")
+
     cat = Category(
         user_id=user_id,
         name=payload.name.strip(),

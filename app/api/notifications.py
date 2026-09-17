@@ -18,10 +18,8 @@ class CatchUpDispatchResponse(BaseModel):
 
 @router.post("/catch-up", response_model=CatchUpDispatchResponse, summary="Dispatch uncategorized catch-up reminders")
 async def trigger_catchup(
-    all_users: bool = False,
     db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_current_user),
 ):
-    target_user = None if all_users else user_id
-    result = await dispatch_all_catchups(db, target_user)
+    result = await dispatch_all_catchups(db, user_id)
     return result

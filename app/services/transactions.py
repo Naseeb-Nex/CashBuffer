@@ -29,6 +29,15 @@ async def _ensure_user_exists(db: AsyncSession, user_id: str) -> User:
     return user
 
 
+async def _validate_user_category(db: AsyncSession, user_id: str, category_id: int | None) -> bool:
+    """Confirms category_id exists and belongs to the given user."""
+    if category_id is None:
+        return True
+    stmt = select(Category).where(Category.user_id == user_id, Category.id == category_id)
+    res = await db.execute(stmt)
+    return res.scalar_one_or_none() is not None
+
+
 async def create_transaction(
     db: AsyncSession,
     user_id: str,
@@ -45,6 +54,9 @@ async def create_transaction(
 
     if record_date is None:
         record_date = date.today()
+
+    if category_id and not await _validate_user_category(db, user_id, category_id):
+        category_id = None
 
     tx = Transaction(
         user_id=user_id,
@@ -87,6 +99,9 @@ async def create_batch_transactions(
             rec_date = date.today()
 
         category_id = item.get("category_id")
+        if category_id and not await _validate_user_category(db, user_id, category_id):
+            category_id = None
+
         tx = Transaction(
             user_id=user_id,
             amount=float(item["amount"]),
@@ -107,6 +122,24 @@ async def create_batch_transactions(
     for tx in created:
         await db.refresh(tx)
     return created
+
+
+async def create_transaction_from_parsed(
+    db: AsyncSession,
+    user_id: str,
+    parsed: dict[str, Any],
+) -> Transaction:
+    """Creates a transaction from parsed bank alert dict."""
+    return await create_transaction(
+        db=db,
+        user_id=user_id,
+        amount=parsed["amount"],
+        currency=parsed.get("currency", "INR"),
+        is_inflow=parsed.get("is_inflow", False),
+        record_date=parsed.get("record_date"),
+        vendor_raw=parsed.get("vendor_raw", "Unknown"),
+        auto_categorize=True,
+    )
 
 
 async def ingest_from_raw_email(
@@ -181,6 +214,8 @@ async def update_transaction(
         return None
 
     if category_id is not None:
+        if not await _validate_user_category(db, user_id, category_id):
+            return None
         tx.category_id = category_id
         tx.status = TransactionStatus.CATEGORIZED
     if status is not None:

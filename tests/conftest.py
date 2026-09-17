@@ -3,8 +3,15 @@ import uuid
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from app.db.database import AsyncSessionLocal
+from app.db.database import AsyncSessionLocal, Base, engine
 from main import app
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
 
 
 @pytest_asyncio.fixture

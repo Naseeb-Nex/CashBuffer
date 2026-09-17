@@ -59,6 +59,17 @@ def get_email_body(service, msg_id: str) -> str | None:
         return None
 
 
+def mark_as_read(service, msg_id: str) -> None:
+    """Removes UNREAD label from a message."""
+    try:
+        service.users().messages().batchModify(
+            userId="me",
+            body={"ids": [msg_id], "removeLabelIds": ["UNREAD"]},
+        ).execute()
+    except Exception as e:
+        logger.error(f"Failed to mark message {msg_id} as read: {e}")
+
+
 def parse_email_message(service, msg_id: str) -> dict[str, Any] | None:
     """Fetches and parses a single Gmail message into structured transaction data."""
     body = get_email_body(service, msg_id)
