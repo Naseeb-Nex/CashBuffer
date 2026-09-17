@@ -113,7 +113,18 @@ async def create_batch_transactions(
     """Inserts a batch of transactions for user."""
     await _ensure_user_exists(db, user_id)
 
-    # 1. Pre-process items mapping hashes 
+    cat_stmt = select(Category.id).where(Category.user_id == user_id)
+    cat_res = await db.execute(cat_stmt)
+    valid_category_ids = set(cat_res.scalars().all())
+
+    rules = []
+    if auto_categorize:
+        from app.db.models import VendorRule
+        from app.services.categorization import matches_pattern
+        rules_stmt = select(VendorRule).where(VendorRule.user_id == user_id)
+        rules_res = await db.execute(rules_stmt)
+        rules = rules_res.scalars().all()
+
     processed_items = []
     tx_hashes = []
     for item in items:
@@ -131,7 +142,7 @@ async def create_batch_transactions(
         is_inflow = bool(item.get("is_inflow", False))
         vendor_raw = str(item.get("vendor_raw", "Unknown"))
         tx_hash = _compute_tx_hash(user_id, amount, currency, is_inflow, rec_date, vendor_raw)
-        
+
         tx_hashes.append(tx_hash)
         processed_items.append({
             "original": item,
@@ -143,39 +154,36 @@ async def create_batch_transactions(
             "tx_hash": tx_hash,
         })
 
-    # 2. Bulk lookup
     existing_records = []
     if tx_hashes:
         stmt = select(Transaction).where(Transaction.tx_hash.in_(tx_hashes))
         res = await db.execute(stmt)
         existing_records = res.scalars().all()
-    
+
     existing_by_hash = {tx.tx_hash: tx for tx in existing_records}
 
-    # 3. Process avoiding duplicates
     created: list[Transaction] = []
     to_add: list[Transaction] = []
     seen_in_batch = set()
 
     for p_item in processed_items:
         tx_hash = p_item["tx_hash"]
-        
+
         if tx_hash in existing_by_hash:
             created.append(existing_by_hash[tx_hash])
             continue
-            
+
         if tx_hash in seen_in_batch:
-            # We already have a pending creation for this hash in the current batch
             for t in to_add:
                 if t.tx_hash == tx_hash:
                     created.append(t)
                     break
             continue
-            
+
         category_id = p_item["original"].get("category_id")
-        if category_id and not await _validate_user_category(db, user_id, category_id):
+        if category_id and category_id not in valid_category_ids:
             category_id = None
-            
+
         tx = Transaction(
             user_id=user_id,
             amount=p_item["amount"],
@@ -189,7 +197,16 @@ async def create_batch_transactions(
         )
 
         if auto_categorize and not category_id:
-            await categorize_transaction(db, tx)
+            matched_cat_id = None
+            for rule in rules:
+                if matches_pattern(rule.vendor_regex, tx.vendor_raw):
+                    matched_cat_id = rule.default_category_id
+                    break
+            if matched_cat_id is not None:
+                tx.category_id = matched_cat_id
+                tx.status = TransactionStatus.CATEGORIZED
+            else:
+                tx.status = TransactionStatus.NEEDS_REVIEW
 
         to_add.append(tx)
         created.append(tx)
@@ -203,10 +220,11 @@ async def create_batch_transactions(
                 await db.refresh(tx)
         except IntegrityError:
             await db.rollback()
-            # If batch fails due to concurrent insert, fall back to adding one-by-one or let it fail
-            # The instruction says we need to keep tracking set, no specific race condition note for batch,
-            # but we can do a safe rollback. The instruction for finding 1 ONLY mentions create_transaction.
-            raise
+            stmt = select(Transaction).where(Transaction.tx_hash.in_(tx_hashes))
+            res = await db.execute(stmt)
+            all_existing = res.scalars().all()
+            by_hash = {t.tx_hash: t for t in all_existing}
+            return [by_hash[h] for h in tx_hashes if h in by_hash]
 
     return created
 
