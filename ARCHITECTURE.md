@@ -21,7 +21,7 @@ To support BYO-LLM, the agent instantiation must be dynamic per-user request:
 3.  **Dynamic Initialization:** When LangGraph executes for `user_id=123`, the state machine fetches and decrypts their key, reads their preference (`model="claude-3-5-sonnet"`), and initializes LiteLLM specifically for that run.
 
 ## 4. The Agent Engine (LangGraph)
-The financial assistant is not a chat completion—it is a graph state machine.
+The financial assistant is not a chat completion - it is a graph state machine.
 *   **State:** Holds `messages`, `user_id`, `active_transactions`, and `financial_context`.
 *   **Memory (SuperMemory):** Instantiated with namespace `user_id`. Agent checks this *before* asking the user questions to see if a categorization rule exists.
 *   **Tool Execution Node:** Exposes strict determinism:

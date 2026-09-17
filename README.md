@@ -1,4 +1,4 @@
-# Cash Buffer — Product Requirements Document (PRD) 💰
+# Cash Buffer - Product Requirements Document (PRD) 💰
 
 > **Deployment:** Raspberry Pi (Local) -> Potential SaaS
 > **Cost Constraint:** Zero-cost (Free tiers only)

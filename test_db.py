@@ -1,7 +1,7 @@
 import asyncio
 
 from app.db.database import Base, engine
-from app.db.models import *
+from app.db.models import Category, LLMConfig, Transaction, User, VendorRule  # noqa: F401
 
 
 async def init_db():
@@ -9,5 +9,7 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     print("created tables")
-    
-asyncio.run(init_db())
+
+
+if __name__ == "__main__":
+    asyncio.run(init_db())

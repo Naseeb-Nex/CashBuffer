@@ -1,0 +1,8 @@
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+exclude = ["alembic"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
