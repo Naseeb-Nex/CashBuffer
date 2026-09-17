@@ -77,6 +77,7 @@ class Transaction(Base):
     is_inflow = Column(Boolean, default=False)  # False = Expense, True = Income
     record_date = Column(Date, nullable=False)
     vendor_raw = Column(String, nullable=False)
+    tx_hash = Column(String, unique=True, index=True, nullable=True)
 
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     status = Column(Enum(TransactionStatus), default=TransactionStatus.PARSED)

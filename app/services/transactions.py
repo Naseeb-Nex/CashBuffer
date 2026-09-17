@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import date, datetime
 from typing import Any
@@ -38,6 +39,13 @@ async def _validate_user_category(db: AsyncSession, user_id: str, category_id: i
     return res.scalar_one_or_none() is not None
 
 
+def _compute_tx_hash(
+    user_id: str, amount: float, currency: str, is_inflow: bool, record_date: date, vendor_raw: str
+) -> str:
+    payload = f"{user_id}:{amount}:{currency}:{is_inflow}:{record_date.isoformat()}:{vendor_raw.strip().lower()}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 async def create_transaction(
     db: AsyncSession,
     user_id: str,
@@ -58,6 +66,14 @@ async def create_transaction(
     if category_id and not await _validate_user_category(db, user_id, category_id):
         category_id = None
 
+    tx_hash = _compute_tx_hash(user_id, amount, currency, is_inflow, record_date, vendor_raw)
+
+    # Check if transaction with this hash already exists
+    stmt = select(Transaction).where(Transaction.tx_hash == tx_hash)
+    existing_tx = (await db.execute(stmt)).scalar_one_or_none()
+    if existing_tx:
+        return existing_tx
+
     tx = Transaction(
         user_id=user_id,
         amount=amount,
@@ -67,6 +83,7 @@ async def create_transaction(
         vendor_raw=vendor_raw,
         category_id=category_id,
         status=TransactionStatus.CATEGORIZED if category_id else TransactionStatus.PARSED,
+        tx_hash=tx_hash,
     )
 
     if auto_categorize and not category_id:
@@ -102,20 +119,35 @@ async def create_batch_transactions(
         if category_id and not await _validate_user_category(db, user_id, category_id):
             category_id = None
 
+        amount = float(item["amount"])
+        currency = item.get("currency", "INR")
+        is_inflow = bool(item.get("is_inflow", False))
+        vendor_raw = str(item.get("vendor_raw", "Unknown"))
+
+        tx_hash = _compute_tx_hash(user_id, amount, currency, is_inflow, rec_date, vendor_raw)
+
+        stmt = select(Transaction).where(Transaction.tx_hash == tx_hash)
+        existing_tx = (await db.execute(stmt)).scalar_one_or_none()
+        if existing_tx:
+            created.append(existing_tx)
+            continue
+
         tx = Transaction(
             user_id=user_id,
-            amount=float(item["amount"]),
-            currency=item.get("currency", "INR"),
-            is_inflow=bool(item.get("is_inflow", False)),
+            amount=amount,
+            currency=currency,
+            is_inflow=is_inflow,
             record_date=rec_date,
-            vendor_raw=str(item.get("vendor_raw", "Unknown")),
+            vendor_raw=vendor_raw,
             category_id=category_id,
             status=TransactionStatus.CATEGORIZED if category_id else TransactionStatus.PARSED,
+            tx_hash=tx_hash,
         )
         if auto_categorize and not category_id:
             await categorize_transaction(db, tx)
 
         db.add(tx)
+        await db.flush()
         created.append(tx)
 
     await db.commit()
