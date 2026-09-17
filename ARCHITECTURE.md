@@ -52,5 +52,5 @@ The financial assistant is not a chat completion - it is a graph state machine.
 *   `users` (id, email, telegram_chat_id)
 *   `llm_configs` (user_id, provider, encrypted_key, model_name)
 *   `vendor_rules` (id, user_id, vendor_regex, default_category_id)
-*   `transactions` (id, user_id, amount, currency, is_inflow, date, vendor_raw, category_id, status[parsed|needs_review|categorized])
+*   `transactions` (id, user_id, amount, currency, is_inflow, date, vendor_raw, category_id, status[parsed|needs_review|categorized], tx_hash)
 *   `categories` (id, user_id, name, parent_id)

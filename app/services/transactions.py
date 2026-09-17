@@ -1,8 +1,10 @@
+import hashlib
 import logging
 from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Category, Transaction, TransactionStatus, User
@@ -38,6 +40,13 @@ async def _validate_user_category(db: AsyncSession, user_id: str, category_id: i
     return res.scalar_one_or_none() is not None
 
 
+def _compute_tx_hash(
+    user_id: str, amount: float, currency: str, is_inflow: bool, record_date: date, vendor_raw: str
+) -> str:
+    payload = f"{user_id}:{amount}:{currency}:{is_inflow}:{record_date.isoformat()}:{vendor_raw.strip().lower()}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 async def create_transaction(
     db: AsyncSession,
     user_id: str,
@@ -58,6 +67,14 @@ async def create_transaction(
     if category_id and not await _validate_user_category(db, user_id, category_id):
         category_id = None
 
+    tx_hash = _compute_tx_hash(user_id, amount, currency, is_inflow, record_date, vendor_raw)
+
+    # Check if transaction with this hash already exists
+    stmt = select(Transaction).where(Transaction.tx_hash == tx_hash)
+    existing_tx = (await db.execute(stmt)).scalar_one_or_none()
+    if existing_tx:
+        return existing_tx
+
     tx = Transaction(
         user_id=user_id,
         amount=amount,
@@ -67,15 +84,24 @@ async def create_transaction(
         vendor_raw=vendor_raw,
         category_id=category_id,
         status=TransactionStatus.CATEGORIZED if category_id else TransactionStatus.PARSED,
+        tx_hash=tx_hash,
     )
 
     if auto_categorize and not category_id:
         await categorize_transaction(db, tx)
 
     db.add(tx)
-    await db.commit()
-    await db.refresh(tx)
-    return tx
+    try:
+        await db.commit()
+        await db.refresh(tx)
+        return tx
+    except IntegrityError:
+        await db.rollback()
+        stmt = select(Transaction).where(Transaction.tx_hash == tx_hash)
+        existing_tx = (await db.execute(stmt)).scalar_one_or_none()
+        if existing_tx:
+            return existing_tx
+        raise
 
 
 async def create_batch_transactions(
@@ -87,7 +113,21 @@ async def create_batch_transactions(
     """Inserts a batch of transactions for user."""
     await _ensure_user_exists(db, user_id)
 
-    created: list[Transaction] = []
+    cat_stmt = select(Category.id).where(Category.user_id == user_id)
+    cat_res = await db.execute(cat_stmt)
+    valid_category_ids = set(cat_res.scalars().all())
+
+    rules = []
+    if auto_categorize:
+        from app.db.models import VendorRule
+        from app.services.categorization import matches_pattern
+
+        rules_stmt = select(VendorRule).where(VendorRule.user_id == user_id)
+        rules_res = await db.execute(rules_stmt)
+        rules = rules_res.scalars().all()
+
+    processed_items = []
+    tx_hashes = []
     for item in items:
         rec_date = item.get("record_date")
         if isinstance(rec_date, str):
@@ -98,29 +138,97 @@ async def create_batch_transactions(
         elif rec_date is None:
             rec_date = date.today()
 
-        category_id = item.get("category_id")
-        if category_id and not await _validate_user_category(db, user_id, category_id):
+        amount = float(item["amount"])
+        currency = item.get("currency", "INR")
+        is_inflow = bool(item.get("is_inflow", False))
+        vendor_raw = str(item.get("vendor_raw", "Unknown"))
+        tx_hash = _compute_tx_hash(user_id, amount, currency, is_inflow, rec_date, vendor_raw)
+
+        tx_hashes.append(tx_hash)
+        processed_items.append(
+            {
+                "original": item,
+                "record_date": rec_date,
+                "amount": amount,
+                "currency": currency,
+                "is_inflow": is_inflow,
+                "vendor_raw": vendor_raw,
+                "tx_hash": tx_hash,
+            }
+        )
+
+    existing_records = []
+    if tx_hashes:
+        stmt = select(Transaction).where(Transaction.tx_hash.in_(tx_hashes))
+        res = await db.execute(stmt)
+        existing_records = res.scalars().all()
+
+    existing_by_hash = {tx.tx_hash: tx for tx in existing_records}
+
+    created: list[Transaction] = []
+    to_add: list[Transaction] = []
+    seen_in_batch = set()
+
+    for p_item in processed_items:
+        tx_hash = p_item["tx_hash"]
+
+        if tx_hash in existing_by_hash:
+            created.append(existing_by_hash[tx_hash])
+            continue
+
+        if tx_hash in seen_in_batch:
+            for t in to_add:
+                if t.tx_hash == tx_hash:
+                    created.append(t)
+                    break
+            continue
+
+        category_id = p_item["original"].get("category_id")
+        if category_id and category_id not in valid_category_ids:
             category_id = None
 
         tx = Transaction(
             user_id=user_id,
-            amount=float(item["amount"]),
-            currency=item.get("currency", "INR"),
-            is_inflow=bool(item.get("is_inflow", False)),
-            record_date=rec_date,
-            vendor_raw=str(item.get("vendor_raw", "Unknown")),
+            amount=p_item["amount"],
+            currency=p_item["currency"],
+            is_inflow=p_item["is_inflow"],
+            record_date=p_item["record_date"],
+            vendor_raw=p_item["vendor_raw"],
             category_id=category_id,
             status=TransactionStatus.CATEGORIZED if category_id else TransactionStatus.PARSED,
+            tx_hash=tx_hash,
         )
+
         if auto_categorize and not category_id:
-            await categorize_transaction(db, tx)
+            matched_cat_id = None
+            for rule in rules:
+                if matches_pattern(rule.vendor_regex, tx.vendor_raw):
+                    matched_cat_id = rule.default_category_id
+                    break
+            if matched_cat_id is not None:
+                tx.category_id = matched_cat_id
+                tx.status = TransactionStatus.CATEGORIZED
+            else:
+                tx.status = TransactionStatus.NEEDS_REVIEW
 
-        db.add(tx)
+        to_add.append(tx)
         created.append(tx)
+        seen_in_batch.add(tx_hash)
 
-    await db.commit()
-    for tx in created:
-        await db.refresh(tx)
+    if to_add:
+        db.add_all(to_add)
+        try:
+            await db.commit()
+            for tx in to_add:
+                await db.refresh(tx)
+        except IntegrityError:
+            await db.rollback()
+            stmt = select(Transaction).where(Transaction.tx_hash.in_(tx_hashes))
+            res = await db.execute(stmt)
+            all_existing = res.scalars().all()
+            by_hash = {t.tx_hash: t for t in all_existing}
+            return [by_hash[h] for h in tx_hashes if h in by_hash]
+
     return created
 
 
