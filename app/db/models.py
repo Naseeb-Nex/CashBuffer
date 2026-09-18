@@ -60,6 +60,19 @@ class LLMConfig(Base):
     encrypted_key = Column(String, nullable=False)  # Decrypted memory-only using app/core/config.py ENCRYPTION_KEY
 
 
+<<<<<<< HEAD
+=======
+class OAuthCredential(Base):
+    """Stores third-party OAuth tokens (e.g., Google) for background ingestion."""
+    __tablename__ = "oauth_credentials"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    provider = Column(String, nullable=False, index=True)  # e.g., 'google'
+    encrypted_access_token = Column(String, nullable=False)
+    encrypted_refresh_token = Column(String, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+>>>>>>> 9b1d119 (no-mistakes(document): Updated documentation and lint for OAuth refresh daemon)
 
 
 class Category(Base):

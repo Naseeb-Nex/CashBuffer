@@ -29,6 +29,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error initializing DB schema: {e}")
 
+<<<<<<< HEAD
     # Start OAuth daemon
     import asyncio
 
@@ -36,6 +37,9 @@ async def lifespan(app: FastAPI):
 
     daemon_task = asyncio.create_task(oauth_refresh_daemon_loop())
 
+=======
+    daemon_task = asyncio.create_task(run_oauth_refresh_daemon())
+>>>>>>> 9b1d119 (no-mistakes(document): Updated documentation and lint for OAuth refresh daemon)
     yield
 
     daemon_task.cancel()
