@@ -1,27 +1,26 @@
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
+from datetime import datetime, timedelta, timezone
 
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.core.crypto import decrypt_key, encrypt_key
 from app.db.database import AsyncSessionLocal
 from app.db.models import OAuthCredential
-from app.core.crypto import encrypt_key, decrypt_key
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 async def refresh_tokens(db: AsyncSession):
     now = datetime.now(timezone.utc)
     cutoff = now + timedelta(minutes=15)
-    
+
     result = await db.execute(
-        select(OAuthCredential).where(
-            OAuthCredential.expires_at < cutoff,
-            OAuthCredential.is_valid == True
-        )
+        select(OAuthCredential).where(OAuthCredential.expires_at < cutoff, OAuthCredential.is_valid)
     )
     creds_to_refresh = result.scalars().all()
 
@@ -55,7 +54,9 @@ async def refresh_tokens(db: AsyncSession):
                 await asyncio.to_thread(creds.refresh, Request())
 
                 db_cred.encrypted_access_token = encrypt_key(creds.token)
-                db_cred.expires_at = creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else (now + timedelta(hours=1))
+                db_cred.expires_at = (
+                    creds.expiry.replace(tzinfo=timezone.utc) if creds.expiry else (now + timedelta(hours=1))
+                )
 
                 db.add(db_cred)
                 logger.info(f"Successfully refreshed OAuth token for user {db_cred.user_id} source {db_cred.source}")
@@ -63,8 +64,9 @@ async def refresh_tokens(db: AsyncSession):
                 logger.error(f"Failed to refresh OAuth token for user {db_cred.user_id} source {db_cred.source}: {e}")
                 db_cred.is_valid = False
                 db.add(db_cred)
-                
+
     await db.commit()
+
 
 async def oauth_refresh_daemon_loop():
     """Background task to continuously monitor and refresh OAuth tokens."""
@@ -78,5 +80,5 @@ async def oauth_refresh_daemon_loop():
             break
         except Exception as e:
             logger.error(f"OAuth Refresh Daemon encountered an error: {e}")
-            
+
         await asyncio.sleep(60 * 5)  # Check every 5 minutes

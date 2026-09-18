@@ -9,7 +9,7 @@
 Cash Buffer is a zero-friction, multi-tenant financial assistant. It bridges the gap between passive tools (like Mint/Copilot) and active chatting. It automatically captures income and expenses via bank emails, categorizes them based on your historical memory, and proactively reaches out on your messaging apps to categorize unknowns. 
 
 ## 2. Core Features (MVP to V1)
-1.  **Automated Capture:** Ingests bank transaction emails (Gmail API), parses amounts/vendors, and securely writes to the database.
+1.  **Automated Capture:** Ingests transactions from third-party financial and email sources (e.g. Gmail API), automatically maintaining valid OAuth tokens to prevent ingestion interruptions, parses amounts/vendors, and securely writes to the database.
 2.  **Autonomous Categorization:** Matches new transactions against an ever-learning memory of your vendor rules.
 3.  **Proactive Catch-ups (Push):** At a scheduled time, the agent batches uncategorized items and sends an interactive message to your Telegram to quickly resolve them.
 4.  **Generative UI (Pull):** A web dashboard where chatting with your financial agent generates deterministic widgets (spend charts, upcoming bills, savings simulators) directly in the UI.
@@ -22,7 +22,7 @@ Cash Buffer is a zero-friction, multi-tenant financial assistant. It bridges the
 
 ## 4. Execution Roadmap
 *   **Phase 1: DB & Auth:** Multi-tenant DB, Kinde JWT validation, and encrypted BYO-LLM credential storage.
-*   **Phase 2: Ingestion:** Gmail API integration and Regex/LLM hybrid parsers.
+*   **Phase 2: Ingestion:** Gmail API/third-party financial sources integration, automated OAuth token refresh daemon, and Regex/LLM hybrid parsers.
 *   **Phase 3: LangGraph Engine:** Dynamic LLM routing (LiteLLM), tools deployment, and SuperMemory integration.
 *   **Phase 4: Interfaces:** Telegram interactive bot and Next.js Generative UI dashboard.
 

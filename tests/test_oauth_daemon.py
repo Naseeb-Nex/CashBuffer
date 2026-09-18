@@ -1,12 +1,11 @@
-import pytest
-import asyncio
-from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from app.core.crypto import decrypt_key, encrypt_key
 from app.db.models import OAuthCredential
 from app.services.oauth_daemon import refresh_tokens
-from app.core.crypto import encrypt_key, decrypt_key
-from sqlalchemy import select
 
 
 @pytest.mark.asyncio
@@ -21,7 +20,7 @@ async def test_refresh_tokens_success(db_session, unique_user_alice):
         encrypted_access_token=encrypt_key("old_access_token"),
         encrypted_refresh_token=encrypt_key("valid_refresh_token"),
         expires_at=expired_time,
-        is_valid=True
+        is_valid=True,
     )
     db_session.add(cred)
     await db_session.commit()
@@ -44,6 +43,7 @@ async def test_refresh_tokens_success(db_session, unique_user_alice):
     assert decrypt_key(cred.encrypted_access_token) == "new_access_token"
     assert cred.expires_at.replace(tzinfo=timezone.utc) > now
 
+
 @pytest.mark.asyncio
 async def test_refresh_tokens_error_handling(db_session, unique_user_alice, caplog):
     # Setup mock data
@@ -56,7 +56,7 @@ async def test_refresh_tokens_error_handling(db_session, unique_user_alice, capl
         encrypted_access_token=encrypt_key("old_access_token"),
         encrypted_refresh_token=encrypt_key("valid_refresh_token"),
         expires_at=expired_time,
-        is_valid=True
+        is_valid=True,
     )
     db_session.add(cred)
     await db_session.commit()
@@ -79,6 +79,7 @@ async def test_refresh_tokens_error_handling(db_session, unique_user_alice, capl
     assert cred.is_valid is False
     assert "Failed to refresh OAuth token" in caplog.text
 
+
 @pytest.mark.asyncio
 async def test_refresh_tokens_skips_valid(db_session, unique_user_alice):
     # Setup mock data
@@ -91,7 +92,7 @@ async def test_refresh_tokens_skips_valid(db_session, unique_user_alice):
         encrypted_access_token=encrypt_key("valid_access_token"),
         encrypted_refresh_token=encrypt_key("valid_refresh_token"),
         expires_at=valid_time,
-        is_valid=True
+        is_valid=True,
     )
     db_session.add(cred)
     await db_session.commit()
