@@ -1,10 +1,10 @@
+from datetime import date
+
 import pytest
+
 from app.api.auth import get_current_user
 from main import app
-from datetime import date
-import io
-import csv
-import json
+
 
 @pytest.fixture
 def mock_export_auth(unique_user_alice):
@@ -12,9 +12,11 @@ def mock_export_auth(unique_user_alice):
     yield
     app.dependency_overrides.clear()
 
+
 @pytest.mark.asyncio
 async def test_export_transactions_csv(client, db_session, mock_export_auth, unique_user_alice):
     from app.services.transactions import create_transaction
+
     await create_transaction(
         db_session,
         user_id=unique_user_alice,
@@ -24,7 +26,7 @@ async def test_export_transactions_csv(client, db_session, mock_export_auth, uni
         record_date=date.today(),
         vendor_raw="Test Vendor",
         category_id=None,
-        auto_categorize=False
+        auto_categorize=False,
     )
 
     response = await client.get("/api/v1/export/transactions?format=csv")
@@ -36,9 +38,11 @@ async def test_export_transactions_csv(client, db_session, mock_export_auth, uni
     assert "id,amount,currency,is_inflow,record_date,vendor_raw,category_id,status" in csv_content
     assert "Test Vendor" in csv_content
 
+
 @pytest.mark.asyncio
 async def test_export_transactions_json(client, db_session, mock_export_auth, unique_user_alice):
     from app.services.transactions import create_transaction
+
     await create_transaction(
         db_session,
         user_id=unique_user_alice,
@@ -48,7 +52,7 @@ async def test_export_transactions_json(client, db_session, mock_export_auth, un
         record_date=date.today(),
         vendor_raw="JSON Vendor",
         category_id=None,
-        auto_categorize=False
+        auto_categorize=False,
     )
 
     response = await client.get("/api/v1/export/transactions?format=json")
@@ -59,6 +63,7 @@ async def test_export_transactions_json(client, db_session, mock_export_auth, un
     assert isinstance(data, list)
     assert any(item.get("vendor_raw") == "JSON Vendor" for item in data)
 
+
 @pytest.mark.asyncio
 async def test_export_budget_csv(client, db_session, mock_export_auth, unique_user_alice):
     response = await client.get("/api/v1/export/budget?format=csv")
@@ -68,6 +73,7 @@ async def test_export_budget_csv(client, db_session, mock_export_auth, unique_us
     csv_content = response.text
     assert "total_inflow,total_outflow,net_buffer,transaction_count,uncategorized_count" in csv_content
     assert "category,amount" in csv_content
+
 
 @pytest.mark.asyncio
 async def test_export_budget_json(client, db_session, mock_export_auth, unique_user_alice):

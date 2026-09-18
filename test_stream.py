@@ -1,9 +1,10 @@
-import asyncio
-from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
 import io
 
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+
 app = FastAPI()
+
 
 @app.get("/")
 def test():

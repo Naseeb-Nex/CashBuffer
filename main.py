@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.assistant import router as assistant_router
 from app.api.auth import router as auth_router
 from app.api.categories import router as categories_router
+from app.api.export import router as export_router
 from app.api.ingestion import router as ingestion_router
 from app.api.llm import router as llm_router
 from app.api.notifications import router as notifications_router
@@ -72,10 +73,8 @@ api_v1_routers = [
     assistant_router,
     notifications_router,
     telegram_router,
+    export_router,
 ]
-
-from app.api.export import router as export_router
-api_v1_routers.append(export_router)
 
 for r in api_v1_routers:
     app.include_router(r, prefix="/api/v1")
