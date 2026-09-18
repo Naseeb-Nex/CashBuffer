@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Category, Transaction, TransactionStatus, User
+from app.db.models import Category, Transaction, TransactionStatus, User, OAuthCredential
 from app.email.parser import UnifiedBankParser
 from app.services.categorization import (
     categorize_transaction,
@@ -411,6 +411,11 @@ async def get_financial_summary(
         cat_name = categories.get(cat_id, "Uncategorized") if cat_id else "Uncategorized"
         breakdown.append({"category_id": cat_id, "category_name": cat_name, "total_amount": round(amt, 2)})
 
+    from sqlalchemy import func
+    stmt_accounts = select(func.count(OAuthCredential.id)).where(OAuthCredential.user_id == user_id, OAuthCredential.is_valid == True)
+    res_accounts = await db.execute(stmt_accounts)
+    linked_accounts = res_accounts.scalar() or 0
+
     return {
         "total_inflow": round(total_inflow, 2),
         "total_outflow": round(total_outflow, 2),
@@ -418,4 +423,5 @@ async def get_financial_summary(
         "transaction_count": len(transactions),
         "uncategorized_count": uncategorized_count,
         "category_breakdown": breakdown,
+        "linked_accounts_count": linked_accounts,
     }
