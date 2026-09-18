@@ -13,6 +13,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 
+from app.core.crypto import decrypt_key, encrypt_key
 from app.db.database import Base
 
 
@@ -101,7 +102,30 @@ class OAuthCredential(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
     provider = Column(String, nullable=False)  # e.g., 'google', 'plaid'
-    access_token = Column(String, nullable=False)
-    refresh_token = Column(String, nullable=True)
+    encrypted_access_token = Column(String, nullable=False)
+    encrypted_refresh_token = Column(String, nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
+    is_valid = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    @property
+    def access_token(self) -> str:
+        return decrypt_key(self.encrypted_access_token)
+
+    @access_token.setter
+    def access_token(self, value: str):
+        self.encrypted_access_token = encrypt_key(value)
+
+    @property
+    def refresh_token(self) -> str | None:
+        if not self.encrypted_refresh_token:
+            return None
+        return decrypt_key(self.encrypted_refresh_token)
+
+    @refresh_token.setter
+    def refresh_token(self, value: str | None):
+        """Sets an encrypted refresh token, handling None appropriately."""
+        if value is None:
+            self.encrypted_refresh_token = None
+        else:
+            self.encrypted_refresh_token = encrypt_key(value)

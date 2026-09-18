@@ -20,9 +20,6 @@ from app.services.oauth_daemon import start_oauth_refresh_daemon, stop_oauth_ref
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cashbuffer")
 
-bg_tasks = {}
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure database schema is created on startup
@@ -33,11 +30,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error initializing DB schema: {e}")
     logger.info("Starting oauth daemon")
-    bg_tasks["oauth_daemon"] = asyncio.create_task(start_oauth_refresh_daemon())
+    daemon_task = asyncio.create_task(start_oauth_refresh_daemon())
     yield
-    daemon_task = bg_tasks.get("oauth_daemon")
-    if daemon_task:
-        await stop_oauth_refresh_daemon(daemon_task)
+    await stop_oauth_refresh_daemon(daemon_task)
 
 
 app = FastAPI(
