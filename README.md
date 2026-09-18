@@ -21,8 +21,8 @@ Cash Buffer is a zero-friction, multi-tenant financial assistant. It bridges the
 -   **Phase 2 (SaaS):** Power users, developers, and privacy-conscious individuals who want AI financial assistance without handing their data to a black-box AI provider.
 
 ## 4. Execution Roadmap
-*   **Phase 1: DB & Auth:** Multi-tenant DB, Kinde JWT validation, and encrypted BYO-LLM and OAuth credential storage.
-*   **Phase 2: Ingestion:** Gmail API integration, OAuth daemon, and Regex/LLM hybrid parsers (with quarantine).
+*   **Phase 1: DB & Auth:** Multi-tenant DB, Kinde JWT validation, and encrypted BYO-LLM credential storage.
+*   **Phase 2: Ingestion:** Gmail API integration and Regex/LLM hybrid parsers (with quarantine).
 *   **Phase 3: LangGraph Engine:** Dynamic LLM routing (LiteLLM), tools deployment, and SuperMemory integration.
 *   **Phase 4: Interfaces:** Telegram interactive bot and Next.js Generative UI dashboard.
 

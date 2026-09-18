@@ -1,4 +1,3 @@
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -15,7 +14,6 @@ from app.api.rules import router as rules_router
 from app.api.telegram import router as telegram_router
 from app.api.transactions import router as transactions_router
 from app.db.database import Base, engine
-from app.services.oauth_daemon import start_oauth_refresh_daemon, stop_oauth_refresh_daemon
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cashbuffer")
@@ -30,10 +28,7 @@ async def lifespan(app: FastAPI):
         logger.info("Database tables verified.")
     except Exception as e:
         logger.error(f"Error initializing DB schema: {e}")
-    logger.info("Starting oauth daemon")
-    daemon_task = asyncio.create_task(start_oauth_refresh_daemon())
     yield
-    await stop_oauth_refresh_daemon(daemon_task)
 
 
 app = FastAPI(
