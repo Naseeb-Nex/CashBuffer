@@ -306,6 +306,8 @@ async def get_user_transactions(
     start_date: date | None = None,
     end_date: date | None = None,
     search: str | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None,
 ) -> list[Transaction]:
     """Fetches filtered transactions for the given tenant."""
     stmt = select(Transaction).where(Transaction.user_id == user_id)
@@ -318,6 +320,10 @@ async def get_user_transactions(
         stmt = stmt.where(Transaction.record_date >= start_date)
     if end_date:
         stmt = stmt.where(Transaction.record_date <= end_date)
+    if min_amount is not None:
+        stmt = stmt.where(Transaction.amount >= min_amount)
+    if max_amount is not None:
+        stmt = stmt.where(Transaction.amount <= max_amount)
     if search:
         stmt = stmt.where(Transaction.vendor_raw.ilike(f"%{search}%"))
 

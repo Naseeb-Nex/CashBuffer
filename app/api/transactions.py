@@ -66,6 +66,8 @@ async def list_transactions(
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
     search: str | None = Query(None),
+    min_amount: float | None = Query(None),
+    max_amount: float | None = Query(None),
 ):
     return await get_user_transactions(
         db=db,
@@ -77,6 +79,8 @@ async def list_transactions(
         start_date=start_date,
         end_date=end_date,
         search=search,
+        min_amount=min_amount,
+        max_amount=max_amount,
     )
 
 
