@@ -37,22 +37,21 @@ def format_budget(budget, format):
     if format == "csv":
         output = StringIO()
         writer = csv.writer(output)
-        writer.writerow(["total_income", "total_expense", "net_balance", "currency"])
+        writer.writerow(["total_inflow", "total_outflow", "net_buffer", "transaction_count", "uncategorized_count"])
         writer.writerow([
-            budget.get("total_income", 0),
-            budget.get("total_expense", 0),
-            budget.get("net_balance", 0),
-            budget.get("currency", "INR")
+            budget.get("total_inflow", 0),
+            budget.get("total_outflow", 0),
+            budget.get("net_buffer", 0),
+            budget.get("transaction_count", 0),
+            budget.get("uncategorized_count", 0)
         ])
         
         writer.writerow([])
-        writer.writerow(["category", "amount", "budget", "utilization"])
-        for cat in budget.get("breakdown", []):
+        writer.writerow(["category", "amount"])
+        for cat in budget.get("category_breakdown", []):
             writer.writerow([
                 cat["category_name"],
-                cat["total_amount"],
-                cat["budget_limit"] if cat["budget_limit"] else "",
-                f"{cat['utilization_pct']}%" if "utilization_pct" in cat else ""
+                cat["total_amount"]
             ])
             
         return output.getvalue()

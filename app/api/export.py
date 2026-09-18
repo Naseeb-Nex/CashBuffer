@@ -14,7 +14,7 @@ router = APIRouter(prefix="/export", tags=["Export"])
 async def export_transactions(
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
-    format: str | None = Query("json", regex="^(csv|json)$"),
+    format: str | None = Query("json", pattern="^(csv|json)$"),
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -48,7 +48,7 @@ async def export_transactions(
 
 @router.get("/budget", summary="Export budget summary")
 async def export_budget(
-    format: str = Query("json", regex="^(csv|json)$"),
+    format: str = Query("json", pattern="^(csv|json)$"),
     user_id: str = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
