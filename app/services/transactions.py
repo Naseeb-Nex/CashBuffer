@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Category, Transaction, TransactionStatus, User, OAuthCredential
+from app.db.models import Category, OAuthCredential, Transaction, TransactionStatus, User
 from app.email.parser import UnifiedBankParser
 from app.services.categorization import (
     categorize_transaction,
@@ -418,7 +418,10 @@ async def get_financial_summary(
         breakdown.append({"category_id": cat_id, "category_name": cat_name, "total_amount": round(amt, 2)})
 
     from sqlalchemy import func
-    stmt_accounts = select(func.count(OAuthCredential.id)).where(OAuthCredential.user_id == user_id, OAuthCredential.is_valid == True)
+
+    stmt_accounts = select(func.count(OAuthCredential.id)).where(
+        OAuthCredential.user_id == user_id, OAuthCredential.is_valid
+    )
     res_accounts = await db.execute(stmt_accounts)
     linked_accounts = res_accounts.scalar() or 0
 

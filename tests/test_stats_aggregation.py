@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from httpx import AsyncClient
-from datetime import datetime, timedelta, timezone
 
 from app.core.crypto import encrypt_key
 from app.db.models import OAuthCredential
@@ -29,9 +30,9 @@ async def test_stats_summary_aggregation(client: AsyncClient, auth_headers_alice
             "transactions": [
                 {"amount": 1000.0, "vendor_raw": "BankA Salary", "is_inflow": True},
                 {"amount": 200.0, "vendor_raw": "BankB Grocery", "is_inflow": False},
-                {"amount": 50.0, "vendor_raw": "BankC Coffee", "is_inflow": False}
+                {"amount": 50.0, "vendor_raw": "BankC Coffee", "is_inflow": False},
             ]
-        }
+        },
     )
     assert batch_res.status_code == 200
 
