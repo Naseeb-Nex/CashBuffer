@@ -32,6 +32,22 @@ class TransactionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CategoryBreakdownItem(BaseModel):
+    category_id: int | None
+    category_name: str
+    total_amount: float
+
+
+class FinancialSummary(BaseModel):
+    total_inflow: float
+    total_outflow: float
+    net_buffer: float
+    transaction_count: int
+    uncategorized_count: int
+    category_breakdown: list[CategoryBreakdownItem]
+    linked_accounts_count: int
+
+
 class UpdateTransactionRequest(BaseModel):
     category_id: int | None = None
     status: TransactionStatus | None = None
@@ -64,7 +80,7 @@ async def list_transactions(
     )
 
 
-@router.get("/summary", summary="Get user financial summary and category breakdown")
+@router.get("/summary", response_model=FinancialSummary, summary="Get user financial summary and category breakdown")
 async def get_summary(
     db: AsyncSession = Depends(get_db),
     user_id: str = Depends(get_current_user),
