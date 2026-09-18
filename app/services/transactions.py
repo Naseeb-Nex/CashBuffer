@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Category, Transaction, TransactionStatus, User, OAuthCredential
+from app.db.models import Category, OAuthCredential, Transaction, TransactionStatus, User
 from app.email.parser import UnifiedBankParser
 from app.services.categorization import (
     categorize_transaction,
@@ -306,6 +306,8 @@ async def get_user_transactions(
     start_date: date | None = None,
     end_date: date | None = None,
     search: str | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None,
 ) -> list[Transaction]:
     """Fetches filtered transactions for the given tenant."""
     stmt = select(Transaction).where(Transaction.user_id == user_id)
@@ -318,6 +320,10 @@ async def get_user_transactions(
         stmt = stmt.where(Transaction.record_date >= start_date)
     if end_date:
         stmt = stmt.where(Transaction.record_date <= end_date)
+    if min_amount is not None:
+        stmt = stmt.where(Transaction.amount >= min_amount)
+    if max_amount is not None:
+        stmt = stmt.where(Transaction.amount <= max_amount)
     if search:
         stmt = stmt.where(Transaction.vendor_raw.ilike(f"%{search}%"))
 
@@ -412,7 +418,10 @@ async def get_financial_summary(
         breakdown.append({"category_id": cat_id, "category_name": cat_name, "total_amount": round(amt, 2)})
 
     from sqlalchemy import func
-    stmt_accounts = select(func.count(OAuthCredential.id)).where(OAuthCredential.user_id == user_id, OAuthCredential.is_valid == True)
+
+    stmt_accounts = select(func.count(OAuthCredential.id)).where(
+        OAuthCredential.user_id == user_id, OAuthCredential.is_valid
+    )
     res_accounts = await db.execute(stmt_accounts)
     linked_accounts = res_accounts.scalar() or 0
 

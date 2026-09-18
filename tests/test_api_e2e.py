@@ -108,6 +108,20 @@ async def test_api_e2e_full_lifecycle(client: AsyncClient, auth_headers_alice, u
     assert new_zomato.json()["status"] == "categorized"
     assert new_zomato.json()["category_id"] == food_cat["id"]
 
+    # 9.5 Test Advanced Filering
+    list_res = await client.get(
+        "/api/v1/transactions",
+        headers=auth_headers_alice,
+        params={"min_amount": 1000, "max_amount": 3000, "search": "Electricity"},
+    )
+    assert list_res.status_code == 200
+    filtered = list_res.json()
+    assert len(filtered) == 1
+    assert filtered[0]["amount"] == 2500.0
+
+    list_res_2 = await client.get("/api/v1/transactions", headers=auth_headers_alice, params={"min_amount": 50000})
+    assert list_res_2.json() == []
+
     # 10. Financial Summary API
     summary_res = await client.get(
         "/api/v1/transactions/summary",
