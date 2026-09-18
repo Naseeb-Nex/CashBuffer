@@ -51,6 +51,7 @@ The financial assistant is not a chat completion - it is a graph state machine.
 ## 6. Database Schema Target (Phase 1)
 *   `users` (id, email, telegram_chat_id)
 *   `llm_configs` (user_id, provider, encrypted_key, model_name)
+*   `oauth_credentials` (id, user_id, source, encrypted_access_token, encrypted_refresh_token, expires_at, is_valid)
 *   `vendor_rules` (id, user_id, vendor_regex, default_category_id)
 *   `transactions` (id, user_id, amount, currency, is_inflow, date, vendor_raw, category_id, status[parsed|needs_review|categorized], tx_hash)
 *   `categories` (id, user_id, name, parent_id)
