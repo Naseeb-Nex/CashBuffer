@@ -46,7 +46,8 @@ class OAuthCredential(Base):
     source = Column(String, nullable=False)  # e.g., 'gmail'
     encrypted_access_token = Column(String, nullable=False)
     encrypted_refresh_token = Column(String, nullable=False)
-    expires_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    is_valid = Column(Boolean, default=True, nullable=False)
 
 
 class LLMConfig(Base):

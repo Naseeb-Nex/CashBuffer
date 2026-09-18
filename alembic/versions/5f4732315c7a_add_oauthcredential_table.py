@@ -28,13 +28,16 @@ def upgrade() -> None:
         sa.Column('encrypted_access_token', sa.String(), nullable=False),
         sa.Column('encrypted_refresh_token', sa.String(), nullable=False),
         sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+        sa.Column('is_valid', sa.Boolean(), server_default='true', nullable=False),
         sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_oauth_credentials_user_id'), 'oauth_credentials', ['user_id'], unique=False)
+    op.create_index(op.f('ix_oauth_credentials_expires_at'), 'oauth_credentials', ['expires_at'], unique=False)
 
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.drop_index(op.f('ix_oauth_credentials_expires_at'), table_name='oauth_credentials')
     op.drop_index(op.f('ix_oauth_credentials_user_id'), table_name='oauth_credentials')
     op.drop_table('oauth_credentials')
