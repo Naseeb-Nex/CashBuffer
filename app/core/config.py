@@ -11,8 +11,7 @@ class Settings(BaseSettings):
     KINDE_CLIENT_ID: str = ""
     KINDE_CLIENT_SECRET: str = ""
     KINDE_CALLBACK_URL: str = "http://localhost:8000/callback"
-
-    # Google OAuth (for Daemon)
+    # Google OAuth Configurations
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
