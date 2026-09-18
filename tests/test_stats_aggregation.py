@@ -18,7 +18,7 @@ async def test_stats_summary_aggregation(client: AsyncClient, auth_headers_alice
     assert batch_res.status_code == 200
 
     # 2. Call stats integration endpoint
-    res = await client.get("/api/v1/stats/summary", headers=auth_headers_alice)
+    res = await client.get("/api/v1/transactions/summary", headers=auth_headers_alice)
     assert res.status_code == 200
     data = res.json()
 

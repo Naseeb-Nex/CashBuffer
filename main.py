@@ -11,7 +11,6 @@ from app.api.ingestion import router as ingestion_router
 from app.api.llm import router as llm_router
 from app.api.notifications import router as notifications_router
 from app.api.rules import router as rules_router
-from app.api.stats import router as stats_router
 from app.api.telegram import router as telegram_router
 from app.api.transactions import router as transactions_router
 from app.db.database import Base, engine
@@ -73,7 +72,6 @@ api_v1_routers = [
     assistant_router,
     notifications_router,
     telegram_router,
-    stats_router,
 ]
 
 for r in api_v1_routers:
