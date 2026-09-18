@@ -37,6 +37,18 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class OAuthCredential(Base):
+    """Stores OAuth tokens for third-party ingestions (Gmail, banks, etc)."""
+
+    __tablename__ = "oauth_credentials"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    source = Column(String, nullable=False)  # e.g., 'gmail'
+    encrypted_access_token = Column(String, nullable=False)
+    encrypted_refresh_token = Column(String, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+
+
 class LLMConfig(Base):
     """BYO-LLM feature configuration per user."""
 
