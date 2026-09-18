@@ -265,6 +265,23 @@ async def ingest_from_raw_email(
         )
         db.add(quarantine)
         await db.commit()
+
+        user = await db.get(User, user_id)
+        if user and user.telegram_chat_id:
+            try:
+                from app.chat_connectors.telegram import telegram_connector
+
+                alert_text = f"⚠️ *CashBuffer Error*: An email was received but could not be parsed. Quarantined (ID: {quarantine.id}) for review."
+                await telegram_connector.send_message(user.telegram_chat_id, alert_text)
+            except Exception as e:
+                import logging
+
+                logging.getLogger(__name__).warning("Failed to dispatch quarantine alert: %s", e)
+        else:
+            import logging
+
+            logging.getLogger(__name__).info("Email quarantined, but user has no Telegram linked for alerts.")
+
         return None
 
     return await create_transaction(

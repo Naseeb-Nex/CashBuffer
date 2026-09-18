@@ -20,7 +20,7 @@ async def test_quarantine_queue(client: AsyncClient, auth_headers_alice: dict, u
         headers=auth_headers_alice,
         json={"email_text": invalid_email_1},
     )
-    assert res_err1.status_code == 422
+    assert res_err1.status_code == 202
 
     invalid_email_2 = "INR alert somehow but missing standard structures here."
     res_err2 = await client.post(
@@ -28,7 +28,7 @@ async def test_quarantine_queue(client: AsyncClient, auth_headers_alice: dict, u
         headers=auth_headers_alice,
         json={"email_text": invalid_email_2},
     )
-    assert res_err2.status_code == 422
+    assert res_err2.status_code == 202
 
     # 3. Fetch quarantine queue
     q_res = await client.get("/api/v1/ingestion/quarantine", headers=auth_headers_alice)

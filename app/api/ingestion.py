@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,9 +81,9 @@ async def ingest_email_webhook(
 ):
     tx = await ingest_from_raw_email(db=db, user_id=user_id, email_text=payload.email_text)
     if not tx:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Unable to parse bank transaction alert from email text",
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={"status": "quarantined", "detail": "Message safely queued for manual review"},
         )
     return tx
 
@@ -94,7 +95,6 @@ async def re_evaluate_rules(
 ):
     count = await batch_re_evaluate_transactions(db=db, user_id=user_id)
     return {"status": "success", "user_id": user_id, "updated_count": count}
-
 
 
 class QuarantinedEmailResponse(BaseModel):
