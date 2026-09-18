@@ -36,7 +36,6 @@ async def lifespan(app: FastAPI):
     from app.services.oauth_daemon import oauth_refresh_daemon_loop
 
     daemon_task = asyncio.create_task(oauth_refresh_daemon_loop())
-
     yield
 
     daemon_task.cancel()
