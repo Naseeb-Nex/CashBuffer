@@ -60,8 +60,6 @@ class LLMConfig(Base):
     encrypted_key = Column(String, nullable=False)  # Decrypted memory-only using app/core/config.py ENCRYPTION_KEY
 
 
-
-
 class Category(Base):
     __tablename__ = "categories"
     id = Column(Integer, primary_key=True, autoincrement=True)
