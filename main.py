@@ -74,6 +74,9 @@ api_v1_routers = [
     telegram_router,
 ]
 
+from app.api.export import router as export_router
+api_v1_routers.append(export_router)
+
 for r in api_v1_routers:
     app.include_router(r, prefix="/api/v1")
     # Also include at root prefix for convenience and backwards compatibility
