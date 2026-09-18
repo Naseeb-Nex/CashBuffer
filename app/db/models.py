@@ -82,3 +82,15 @@ class Transaction(Base):
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     status = Column(Enum(TransactionStatus), default=TransactionStatus.PARSED)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class QuarantinedEmail(Base):
+    """Dead-letter queue for unparseable raw email payloads."""
+
+    __tablename__ = "quarantined_emails"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    email_text = Column(String, nullable=False)
+    error_reason = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    resolved = Column(Boolean, default=False, nullable=False)
