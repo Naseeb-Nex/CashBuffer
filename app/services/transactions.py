@@ -258,6 +258,13 @@ async def ingest_from_raw_email(
     """Parses raw email text and creates a transaction."""
     parsed = UnifiedBankParser.parse(email_text)
     if not parsed:
+        from app.db.models import QuarantinedEmail
+
+        quarantine = QuarantinedEmail(
+            user_id=user_id, email_text=email_text, error_reason="No parser matched or parsing completely failed"
+        )
+        db.add(quarantine)
+        await db.commit()
         return None
 
     return await create_transaction(

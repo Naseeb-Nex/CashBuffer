@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import get_current_user
@@ -94,3 +94,33 @@ async def re_evaluate_rules(
 ):
     count = await batch_re_evaluate_transactions(db=db, user_id=user_id)
     return {"status": "success", "user_id": user_id, "updated_count": count}
+
+
+
+class QuarantinedEmailResponse(BaseModel):
+    id: int
+    user_id: str
+    email_text: str
+    error_reason: str
+    created_at: datetime
+    resolved: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+@router.get("/quarantine", response_model=list[QuarantinedEmailResponse], summary="Get quarantined emails")
+async def get_quarantined_emails(
+    resolved: bool | None = None,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user),
+):
+    from sqlalchemy import select
+
+    from app.db.models import QuarantinedEmail
+
+    query = select(QuarantinedEmail).where(QuarantinedEmail.user_id == user_id)
+    if resolved is not None:
+        query = query.where(QuarantinedEmail.resolved == resolved)
+
+    result = await db.execute(query.order_by(QuarantinedEmail.created_at.desc(), QuarantinedEmail.id.desc()))
+    return result.scalars().all()
