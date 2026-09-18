@@ -15,12 +15,13 @@ async def expired_credential(db_session):
         provider="google",
         access_token="old_access_token",
         refresh_token="valid_refresh_token",
-        expires_at=datetime.now(timezone.utc) - timedelta(minutes=5)
+        expires_at=datetime.now(timezone.utc) - timedelta(minutes=5),
     )
     db_session.add(cred)
     await db_session.commit()
     await db_session.refresh(cred)
     return cred
+
 
 @pytest.fixture
 async def valid_credential(db_session):
@@ -29,12 +30,13 @@ async def valid_credential(db_session):
         provider="google",
         access_token="valid_access_token",
         refresh_token="valid_refresh_token",
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=30)
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
     )
     db_session.add(cred)
     await db_session.commit()
     await db_session.refresh(cred)
     return cred
+
 
 @pytest.mark.asyncio
 @patch("app.services.oauth_daemon.AsyncSessionLocal")
@@ -50,8 +52,10 @@ async def test_refresh_credentials_success(mock_credentials, mock_session_local,
     # We yield the db_session as the session
     mock_session_local.return_value.__aenter__.return_value = db_session
 
-    with patch.object(settings, 'GOOGLE_CLIENT_ID', 'test_client_id'), \
-         patch.object(settings, 'GOOGLE_CLIENT_SECRET', 'test_client_secret'):
+    with (
+        patch.object(settings, "GOOGLE_CLIENT_ID", "test_client_id"),
+        patch.object(settings, "GOOGLE_CLIENT_SECRET", "test_client_secret"),
+    ):
         await refresh_credentials()
 
     # Validation
@@ -59,6 +63,7 @@ async def test_refresh_credentials_success(mock_credentials, mock_session_local,
     assert expired_credential.access_token == "new_access_token"
     assert expired_credential.refresh_token == "new_refresh_token"
     assert expired_credential.expires_at.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
+
 
 @pytest.mark.asyncio
 @patch("app.services.oauth_daemon.AsyncSessionLocal")
@@ -70,6 +75,7 @@ async def test_refresh_credentials_ignores_valid(mock_credentials, mock_session_
 
     assert not mock_credentials.called
 
+
 @pytest.mark.asyncio
 @patch("app.services.oauth_daemon.AsyncSessionLocal")
 @patch("app.services.oauth_daemon.Credentials")
@@ -80,12 +86,12 @@ async def test_refresh_credentials_error_handling(mock_credentials, mock_session
 
     mock_session_local.return_value.__aenter__.return_value = db_session
 
-    with patch.object(settings, 'GOOGLE_CLIENT_ID', 'test_client_id'), \
-         patch.object(settings, 'GOOGLE_CLIENT_SECRET', 'test_client_secret'):
+    with (
+        patch.object(settings, "GOOGLE_CLIENT_ID", "test_client_id"),
+        patch.object(settings, "GOOGLE_CLIENT_SECRET", "test_client_secret"),
+    ):
         await refresh_credentials()
 
     # Ensure it didn't change and didn't crash
     await db_session.refresh(expired_credential)
     assert expired_credential.access_token == "old_access_token"
-
-

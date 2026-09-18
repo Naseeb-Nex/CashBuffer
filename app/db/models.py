@@ -96,8 +96,10 @@ class QuarantinedEmail(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     resolved = Column(Boolean, default=False, nullable=False)
 
+
 class OAuthCredential(Base):
     """Stores third-party access and refresh tokens for users."""
+
     __tablename__ = "oauth_credentials"
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)

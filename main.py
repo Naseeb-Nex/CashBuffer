@@ -20,6 +20,7 @@ from app.services.oauth_daemon import start_oauth_refresh_daemon, stop_oauth_ref
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cashbuffer")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure database schema is created on startup

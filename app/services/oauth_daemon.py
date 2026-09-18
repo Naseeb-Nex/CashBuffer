@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 # Control flag so we can cleanly stop the daemon
 _stop_event = asyncio.Event()
 
+
 async def refresh_credentials():
     """
     Main loop to find and refresh expiring credentials.
@@ -30,16 +31,13 @@ async def refresh_credentials():
             and_(
                 OAuthCredential.encrypted_refresh_token.isnot(None),
                 OAuthCredential.is_valid.is_(True),
-                or_(
-                    OAuthCredential.expires_at.is_(None),
-                    OAuthCredential.expires_at <= threshold
-                )
+                or_(OAuthCredential.expires_at.is_(None), OAuthCredential.expires_at <= threshold),
             )
         )
         result = await session.execute(stmt)
         cred_ids = result.scalars().all()
 
-    for chunk in [cred_ids[i:i+100] for i in range(0, len(cred_ids), 100)]:
+    for chunk in [cred_ids[i : i + 100] for i in range(0, len(cred_ids), 100)]:
         for cred_id in chunk:
             async with AsyncSessionLocal() as session:
                 db_cred = await session.get(OAuthCredential, cred_id)
@@ -74,12 +72,15 @@ async def refresh_credentials():
                             raise ValueError(f"Missing OAuth config for {db_cred.provider}")
 
                         async with httpx.AsyncClient() as client:
-                            resp = await client.post(token_uri, data={
-                                "grant_type": "refresh_token",
-                                "refresh_token": db_cred.refresh_token,
-                                "client_id": client_id,
-                                "client_secret": client_secret,
-                            })
+                            resp = await client.post(
+                                token_uri,
+                                data={
+                                    "grant_type": "refresh_token",
+                                    "refresh_token": db_cred.refresh_token,
+                                    "client_id": client_id,
+                                    "client_secret": client_secret,
+                                },
+                            )
                             resp.raise_for_status()
                             data = resp.json()
                             db_cred.access_token = data["access_token"]
@@ -107,6 +108,7 @@ async def refresh_credentials():
                     else:
                         await session.rollback()
 
+
 async def start_oauth_refresh_daemon(interval_seconds: int = 300):
     logger.info("Starting OAuth refresh daemon")
     _stop_event.clear()
@@ -120,7 +122,8 @@ async def start_oauth_refresh_daemon(interval_seconds: int = 300):
         try:
             await asyncio.wait_for(_stop_event.wait(), timeout=interval_seconds)
         except asyncio.TimeoutError:
-            pass # normal interval
+            pass  # normal interval
+
 
 async def stop_oauth_refresh_daemon(task: asyncio.Task = None):
     logger.info("Stopping OAuth refresh daemon")
