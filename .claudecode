@@ -1,0 +1,7 @@
+# CashBuffer workspace constraints
+
+## Locked acceptance checks
+The agent is forbidden from editing, deleting, renaming, chmod-ing, or otherwise modifying any file inside `./locked_checks/`. Read locked checks only. New checks may be created only through the approved `./approve_checks.sh` flow.
+
+## Scope
+Do not write application code or tests unless the user explicitly requests implementation after locked checks are approved. Keep financial data tenant-scoped and use precise currency arithmetic.
