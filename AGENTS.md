@@ -2,7 +2,7 @@
 
 This file is the project's committed home for project-intrinsic agent knowledge: build, test, release, architecture, and sharp-edge notes that should travel with the code.
 
-- Add durable project-specific notes here as they are discovered through real work.
+- Native PostgreSQL migrations: Runner lives in `app/db/native_migrations/` (`scripts/migrate.py`), executes numbered SQL migrations in `migrations/*.sql` using psycopg 3 with session advisory lock and SHA-256 checksum validation. `users.idp_user_id` stores Kinde provider subject; `users.id` is UUID.
 
 ## Maintaining this file
 
