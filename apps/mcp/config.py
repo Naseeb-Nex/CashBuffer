@@ -44,7 +44,7 @@ class MCPConfig:
     def get_psycopg_conninfo(self) -> str:
         """
         Normalize database connection string for native psycopg 3.
-        Removes SQLAlchemy dialect suffixes (+asyncpg, +psycopg, etc.)
+        Removes dialect suffixes (+asyncpg, +psycopg, etc.)
         """
         url = self.database_url
         if "+asyncpg" in url:

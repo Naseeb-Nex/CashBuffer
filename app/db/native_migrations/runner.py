@@ -55,7 +55,7 @@ class MigrationRecord:
 
 
 def normalize_db_url(db_url: str) -> str:
-    """Normalize SQLAlchemy or common PostgreSQL connection URLs to psycopg-compatible string."""
+    """Normalize common PostgreSQL connection URLs to psycopg-compatible string."""
     url = db_url.strip()
     if url.startswith("postgresql+asyncpg://"):
         url = "postgresql://" + url[len("postgresql+asyncpg://") :]
@@ -262,6 +262,10 @@ class MigrationRunner:
                 return newly_applied
         finally:
             if managed_conn and not conn.closed:
+                try:
+                    conn.commit()
+                except Exception:
+                    pass
                 conn.close()
 
     def get_status(self, conn: psycopg.Connection | None = None) -> list[dict[str, Any]]:

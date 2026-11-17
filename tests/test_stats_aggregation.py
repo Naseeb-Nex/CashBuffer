@@ -4,23 +4,20 @@ import pytest
 from httpx import AsyncClient
 
 from app.core.crypto import encrypt_key
-from app.db.models import OAuthCredential
-
 
 @pytest.mark.asyncio
 async def test_stats_summary_aggregation(client: AsyncClient, auth_headers_alice, unique_user_alice, db_session):
     # Seed an active OAuthCredential for the user
+    user = await db_session.get_or_create_user(unique_user_alice)
     now = datetime.now(timezone.utc)
-    cred = OAuthCredential(
-        user_id=unique_user_alice,
+    await db_session.add_oauth_credential(
+        user_id=user.id,
         source="gmail",
         encrypted_access_token=encrypt_key("fake_access"),
         encrypted_refresh_token=encrypt_key("fake_refresh"),
         expires_at=now + timedelta(hours=1),
         is_valid=True,
     )
-    db_session.add(cred)
-    await db_session.commit()
 
     # 1. Ingest transactions to simulate activity across "multiple accounts" dynamically handled
     batch_res = await client.post(

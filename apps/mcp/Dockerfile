@@ -17,4 +17,4 @@ COPY apps/mcp/ apps/mcp/
 
 EXPOSE 8080
 
-CMD ["python", "-m", "apps.mcp.runner"]
+CMD ["python", "-m", "apps.mcp.runner", "--transport", "sse", "--host", "0.0.0.0", "--port", "8080"]

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 _pool: AsyncConnectionPool | None = None
 
 def get_psycopg_conninfo(url: str) -> str:
-    """Normalize SQLAlchemy or asyncpg database URL for native psycopg 3."""
+    """Normalize common database URLs for native psycopg 3."""
     if url.startswith("postgresql+asyncpg://"):
         return url.replace("postgresql+asyncpg://", "postgresql://", 1)
     if url.startswith("postgresql+psycopg://"):

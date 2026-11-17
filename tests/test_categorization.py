@@ -2,7 +2,7 @@ import uuid
 
 import pytest
 
-from app.db.models import TransactionStatus
+from app.domain.models import TransactionStatus
 from app.services.categorization import (
     create_or_update_vendor_rule,
     ensure_default_categories,
@@ -10,12 +10,10 @@ from app.services.categorization import (
 )
 from app.services.transactions import create_transaction, get_transaction_by_id
 
-
 def test_matches_pattern():
     assert matches_pattern("swiggy", "UPI/SWIGGY/12345") is True
     assert matches_pattern("zomato|swiggy", "Zomato Order #88") is True
     assert matches_pattern("netflix", "Spotify Premium") is False
-
 
 @pytest.mark.asyncio
 async def test_categorization_flow_and_re_evaluation(db_session):
@@ -36,7 +34,7 @@ async def test_categorization_flow_and_re_evaluation(db_session):
 
     # 2. Add rule for Swiggy -> should re-evaluate and mark as CATEGORIZED
     rule = await create_or_update_vendor_rule(
-        db=db_session,
+        repo=db_session,
         user_id=user_id,
         vendor_pattern="swiggy",
         category_id=food_cat.id,

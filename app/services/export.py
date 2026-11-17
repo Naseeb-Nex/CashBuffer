@@ -1,21 +1,23 @@
 import csv
 import json
+from dataclasses import asdict, is_dataclass
 from datetime import date
 from io import StringIO
 from typing import Any
-
 
 class ExtendedEncoder(json.JSONEncoder):
     def default(self, obj: Any) -> Any:
         if isinstance(obj, date):
             return obj.isoformat()
+        if hasattr(obj, "value"):
+            return obj.value
+        if is_dataclass(obj):
+            return asdict(obj)
         if hasattr(obj, "__dict__"):
-            # Exclude SQLAlchemy internal state
             return {k: v for k, v in obj.__dict__.items() if not k.startswith("_")}
         return super().default(obj)
 
-
-def format_transactions(transactions, format):
+def format_transactions(transactions, format: str) -> str:
     if format == "csv":
         output = StringIO()
         writer = csv.writer(output)
@@ -27,7 +29,7 @@ def format_transactions(transactions, format):
                     tx.amount,
                     tx.currency,
                     tx.is_inflow,
-                    tx.record_date.isoformat() if tx.record_date else "",
+                    tx.record_date.isoformat() if hasattr(tx.record_date, "isoformat") else str(tx.record_date),
                     tx.vendor_raw,
                     tx.category_id,
                     tx.status.value if hasattr(tx.status, "value") else tx.status,
@@ -36,9 +38,9 @@ def format_transactions(transactions, format):
         return output.getvalue()
     elif format == "json":
         return json.dumps(transactions, cls=ExtendedEncoder, indent=2)
+    return ""
 
-
-def format_budget(budget, format):
+def format_budget(budget: dict[str, Any], format: str) -> str:
     if format == "csv":
         output = StringIO()
         writer = csv.writer(output)
@@ -56,8 +58,9 @@ def format_budget(budget, format):
         writer.writerow([])
         writer.writerow(["category", "amount"])
         for cat in budget.get("category_breakdown", []):
-            writer.writerow([cat["category_name"], cat["total_amount"]])
+            writer.writerow([cat.get("category_name", ""), cat.get("total_amount", 0)])
 
         return output.getvalue()
     elif format == "json":
-        return json.dumps(budget, indent=2)
+        return json.dumps(budget, cls=ExtendedEncoder, indent=2)
+    return ""
