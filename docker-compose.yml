@@ -86,5 +86,23 @@ services:
         limits:
           memory: 150M
 
+  # 5. Frontend Dashboard (Next.js)
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      API_INTERNAL_URL: http://api:8000
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
 volumes:
   pgdata:
