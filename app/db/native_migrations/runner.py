@@ -55,14 +55,10 @@ class MigrationRecord:
 
 
 def normalize_db_url(db_url: str) -> str:
-    """Normalize common PostgreSQL connection URLs to psycopg-compatible string."""
+    """Validate native psycopg 3 PostgreSQL connection URL."""
     url = db_url.strip()
-    if url.startswith("postgresql+asyncpg://"):
-        url = "postgresql://" + url[len("postgresql+asyncpg://") :]
-    elif url.startswith("postgresql+psycopg://"):
-        url = "postgresql://" + url[len("postgresql+psycopg://") :]
-    elif url.startswith("postgres://"):
-        url = "postgresql://" + url[len("postgres://") :]
+    if not url.startswith("postgresql://"):
+        raise ValueError("DATABASE_URL must use native postgresql:// scheme")
     return url
 
 

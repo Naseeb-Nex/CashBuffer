@@ -42,17 +42,7 @@ class MCPConfig:
     )
 
     def get_psycopg_conninfo(self) -> str:
-        """
-        Normalize database connection string for native psycopg 3.
-        Removes dialect suffixes (+asyncpg, +psycopg, etc.)
-        """
-        url = self.database_url
-        if "+asyncpg" in url:
-            url = url.replace("+asyncpg", "")
-        if "+psycopg2" in url:
-            url = url.replace("+psycopg2", "")
-        if "+psycopg" in url:
-            url = url.replace("+psycopg", "")
-        if url.startswith("postgres://"):
-            url = "postgresql://" + url[len("postgres://") :]
-        return url
+        """Validate native psycopg 3 PostgreSQL connection URL."""
+        if not self.database_url.startswith("postgresql://"):
+            raise ValueError("DATABASE_URL must use native postgresql:// scheme")
+        return self.database_url

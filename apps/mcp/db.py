@@ -18,7 +18,7 @@ class DatabasePool:
     """
     Native psycopg 3 asynchronous connection pool.
     Exclusively provides read-only connections for MCP tool execution.
-    NO SQLAlchemy dependencies.
+    Uses native psycopg 3 only.
     """
 
     def __init__(

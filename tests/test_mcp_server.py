@@ -373,9 +373,8 @@ async def test_database_pool_read_only_contract():
         async with pool.acquire_read_only():
             pass
 
-    # Test config normalization (strips +asyncpg)
-    cfg = MCPConfig(database_url="postgresql+asyncpg://user:pass@host:5432/db")
+    cfg = MCPConfig(database_url="postgresql://user:pass@host:5432/db")
     assert cfg.get_psycopg_conninfo() == "postgresql://user:pass@host:5432/db"
 
-    cfg_postgres = MCPConfig(database_url="postgres://user:pass@host:5432/db")
-    assert cfg_postgres.get_psycopg_conninfo() == "postgresql://user:pass@host:5432/db"
+    with pytest.raises(ValueError, match="native postgresql://"):
+        MCPConfig(database_url="mysql://user:pass@host:3306/db").get_psycopg_conninfo()

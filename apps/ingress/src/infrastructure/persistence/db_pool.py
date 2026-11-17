@@ -9,10 +9,8 @@ _pool: AsyncConnectionPool | None = None
 
 def get_database_url() -> str:
     url = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/cashbuffer")
-    if url.startswith("postgresql+asyncpg://"):
-        url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
-    if url.startswith("postgresql+psycopg://"):
-        url = url.replace("postgresql+psycopg://", "postgresql://", 1)
+    if not url.startswith("postgresql://"):
+        raise ValueError("DATABASE_URL must use native postgresql:// scheme")
     return url
 
 async def get_ingress_db_pool() -> AsyncConnectionPool:

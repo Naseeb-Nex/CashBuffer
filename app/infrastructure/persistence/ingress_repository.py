@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS ingress_sync_state (
 
 
 class PsycopgIngressRepository:
-    """Pure psycopg 3 implementation of ingress persistence. Zero SQLAlchemy."""
+    """Pure psycopg 3 implementation of ingress persistence."""
 
     def __init__(self, pool_or_conn: Any):
         self.pool = pool_or_conn

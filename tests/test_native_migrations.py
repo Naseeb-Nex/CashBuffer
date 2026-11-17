@@ -32,24 +32,15 @@ from app.db.native_migrations.runner import (
 )
 
 
-def test_normalize_db_url():
-    """Verify various Postgres URL schemes normalize to standard psycopg postgresql:// format."""
-    assert (
-        normalize_db_url("postgresql+asyncpg://user:pass@localhost:5432/dbname")
-        == "postgresql://user:pass@localhost:5432/dbname"
+def test_normalize_db_url_accepts_native_scheme():
+    assert normalize_db_url("postgresql://user:pass@localhost:5432/dbname") == (
+        "postgresql://user:pass@localhost:5432/dbname"
     )
-    assert (
-        normalize_db_url("postgresql+psycopg://user:pass@localhost:5432/dbname")
-        == "postgresql://user:pass@localhost:5432/dbname"
-    )
-    assert (
-        normalize_db_url("postgres://user:pass@localhost:5432/dbname")
-        == "postgresql://user:pass@localhost:5432/dbname"
-    )
-    assert (
-        normalize_db_url("postgresql://user:pass@localhost:5432/dbname")
-        == "postgresql://user:pass@localhost:5432/dbname"
-    )
+
+
+def test_normalize_db_url_rejects_non_native_scheme():
+    with pytest.raises(ValueError, match="native postgresql://"):
+        normalize_db_url("mysql://user:pass@localhost:3306/dbname")
 
 
 def test_compute_checksum_normalization():
