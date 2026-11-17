@@ -2,11 +2,9 @@ import logging
 import re
 from typing import Any
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.chat_connectors.telegram import telegram_connector
-from app.db.models import Category, TransactionStatus, User
+from app.domain.models import TransactionStatus, User
+from app.infrastructure.persistence.native_repository import NativeRepository
 from app.services.categorization import create_or_update_vendor_rule
 from app.services.transactions import (
     get_financial_summary,
@@ -17,8 +15,7 @@ from app.services.transactions import (
 
 logger = logging.getLogger(__name__)
 
-
-async def dispatch_user_catchup(db: AsyncSession, user: User) -> dict[str, Any]:
+async def dispatch_user_catchup(db: NativeRepository, user: User) -> dict[str, Any]:
     """Sends uncategorized transaction catch-up message to a single user."""
     if not user.telegram_chat_id:
         return {"user_id": user.id, "sent": False, "reason": "No telegram_chat_id linked"}
@@ -44,21 +41,37 @@ async def dispatch_user_catchup(db: AsyncSession, user: User) -> dict[str, Any]:
     sent = await telegram_connector.send_message(user.telegram_chat_id, message_text)
     return {"user_id": user.id, "sent": sent, "pending_count": len(pending)}
 
-
-async def dispatch_all_catchups(db: AsyncSession, user_id: str | None = None) -> dict[str, Any]:
+async def dispatch_all_catchups(db: NativeRepository, user_id: str | None = None) -> dict[str, Any]:
     """Dispatches catch-up messages to either one user or all users with linked Telegram."""
     if user_id:
-        stmt = select(User).where(User.id == user_id)
-        result = await db.execute(stmt)
-        user = result.scalar_one_or_none()
+        user = await db.get_user_by_idp(user_id)
+        if not user:
+            user = await db.get_user_by_id(user_id)
         if not user:
             return {"dispatched": 0, "results": [{"error": "User not found"}]}
         res = await dispatch_user_catchup(db, user)
         return {"dispatched": 1 if res.get("sent") else 0, "results": [res]}
 
-    stmt = select(User).where(User.telegram_chat_id.isnot(None))
-    result = await db.execute(stmt)
-    users = result.scalars().all()
+    # Find all users with telegram_chat_id set
+    async with db.pool.connection() as conn:
+        from psycopg.rows import dict_row
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                "SELECT id, idp_user_id, email, telegram_chat_id, created_at, updated_at "
+                "FROM users WHERE telegram_chat_id IS NOT NULL;"
+            )
+            rows = await cur.fetchall()
+            users = [
+                User(
+                    id=str(r["id"]),
+                    idp_user_id=r["idp_user_id"],
+                    email=r["email"],
+                    telegram_chat_id=r["telegram_chat_id"],
+                    created_at=r["created_at"],
+                    updated_at=r["updated_at"],
+                )
+                for r in rows
+            ]
 
     results = []
     sent_count = 0
@@ -70,8 +83,7 @@ async def dispatch_all_catchups(db: AsyncSession, user_id: str | None = None) ->
 
     return {"dispatched": sent_count, "results": results}
 
-
-async def process_telegram_update(db: AsyncSession, update_data: dict[str, Any]) -> dict[str, Any]:
+async def process_telegram_update(db: NativeRepository, update_data: dict[str, Any]) -> dict[str, Any]:
     """
     Processes incoming Telegram Webhook payloads.
     Supports /start, /cat <id> <category>, /summary, /balance.
@@ -94,10 +106,7 @@ async def process_telegram_update(db: AsyncSession, update_data: dict[str, Any])
         )
         return {"status": "prompted_link"}
 
-    # Find user by chat_id
-    stmt = select(User).where(User.telegram_chat_id == chat_id)
-    res = await db.execute(stmt)
-    user = res.scalar_one_or_none()
+    user = await db.get_user_by_telegram_chat_id(chat_id)
     if not user:
         await telegram_connector.send_message(
             chat_id,
@@ -129,18 +138,12 @@ async def process_telegram_update(db: AsyncSession, update_data: dict[str, Any])
             await telegram_connector.send_message(chat_id, f"❌ Transaction `#{tx_id}` not found in your account.")
             return {"status": "not_found", "tx_id": tx_id}
 
-        # Find or create category
-        cat_stmt = select(Category).where(Category.user_id == user.id, Category.name.ilike(category_name))
-        c_res = await db.execute(cat_stmt)
-        cat_obj = c_res.scalar_one_or_none()
+        cats = await db.get_categories(user.id)
+        cat_obj = next((c for c in cats if c.name.lower() == category_name.lower()), None)
         if not cat_obj:
-            cat_obj = Category(user_id=user.id, name=category_name)
-            db.add(cat_obj)
-            await db.commit()
-            await db.refresh(cat_obj)
+            cat_obj = await db.create_category(user_id=user.id, name=category_name)
 
         await update_transaction(db, user.id, tx.id, category_id=cat_obj.id)
-        # Learn rule for this vendor
         await create_or_update_vendor_rule(db, user.id, tx.vendor_raw, cat_obj.id)
 
         await telegram_connector.send_message(

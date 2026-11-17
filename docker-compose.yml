@@ -1,0 +1,90 @@
+services:
+  # 0. PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cashbuffer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cashbuffer"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # 1. Native Migrations Service (Runs on startup)
+  migration:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: ["python", "scripts/migrate.py"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  # 2. Core API (FastAPI)
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
+      ENCRYPTION_KEY: "4CNPcPvUHydNCbtN3FM195z4gcREF1Mxb-fqSCeQPHU="
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # 3. Ingress Microservice (Worker)
+  ingress:
+    build:
+      context: .
+      dockerfile: apps/ingress/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
+  # 4. FastMCP Server (AI Financial Intelligence)
+  mcp-server:
+    build:
+      context: .
+      dockerfile: apps/mcp/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
+    depends_on:
+      migration:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
+volumes:
+  pgdata:

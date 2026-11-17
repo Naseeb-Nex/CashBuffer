@@ -3,7 +3,7 @@
 ## 1. Top-Level Ecosystem
 *   **Host:** Raspberry Pi (Debian/Ubuntu).
 *   **API / Core:** Python, FastAPI.
-*   **Database:** Neon (Serverless Postgres), accessed via SQLAlchemy & asyncpg.
+*   **Database:** Neon (Serverless Postgres), accessed via native psycopg 3 async connection pool. Zero SQLAlchemy / asyncpg.
 *   **Authentication:** Kinde (Stateless JWT validation via JWKS).
 *   **Agent Orchestration:** LangGraph + LangChain.
 *   **LLM Gateway:** LiteLLM (unifies calls to OpenAI, Anthropic, Gemini, Ollama under one standard).

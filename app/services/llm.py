@@ -3,14 +3,12 @@ import os
 from typing import Any
 
 import litellm
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.crypto import decrypt_key, encrypt_key
-from app.db.models import LLMConfig, User
+from app.domain.models import LLMConfig
+from app.infrastructure.persistence.native_repository import NativeRepository
 
 logger = logging.getLogger(__name__)
-
 
 def mask_key(api_key: str) -> str:
     """Returns a masked version of the API key for safe UI display."""
@@ -20,12 +18,15 @@ def mask_key(api_key: str) -> str:
         return "sk-****"
     return f"{api_key[:4]}...{api_key[-4:]}"
 
-
-async def get_user_llm_config(db: AsyncSession, user_id: str) -> dict[str, Any] | None:
+async def get_user_llm_config(db: NativeRepository, user_id: str) -> dict[str, Any] | None:
     """Fetches user LLM config with masked API key."""
-    stmt = select(LLMConfig).where(LLMConfig.user_id == user_id)
-    result = await db.execute(stmt)
-    config = result.scalar_one_or_none()
+    user = await db.get_user_by_idp(user_id)
+    if not user:
+        user = await db.get_user_by_id(user_id)
+    if not user:
+        return None
+
+    config = await db.get_llm_config(user.id)
     if not config:
         return None
 
@@ -42,103 +43,62 @@ async def get_user_llm_config(db: AsyncSession, user_id: str) -> dict[str, Any] 
         "masked_key": masked,
     }
 
-
 async def save_user_llm_config(
-    db: AsyncSession,
+    db: NativeRepository,
     user_id: str,
     provider: str,
     model_name: str,
     api_key: str,
 ) -> LLMConfig:
     """Encrypts key and saves/updates user LLM config."""
-    stmt_user = select(User).where(User.id == user_id)
-    res_user = await db.execute(stmt_user)
-    user = res_user.scalar_one_or_none()
+    user = await db.get_user_by_idp(user_id)
     if not user:
-        user = User(id=user_id, email=f"{user_id}@cashbuffer.local")
-        db.add(user)
-        await db.commit()
+        user = await db.get_user_by_id(user_id)
+    if not user:
+        user = await db.get_or_create_user(user_id)
 
     encrypted = encrypt_key(api_key.strip())
-    stmt = select(LLMConfig).where(LLMConfig.user_id == user_id)
-    result = await db.execute(stmt)
-    config = result.scalar_one_or_none()
+    return await db.save_llm_config(
+        user_id=user.id,
+        provider=provider.strip().lower(),
+        model_name=model_name.strip(),
+        encrypted_key=encrypted,
+    )
 
-    if config:
-        config.provider = provider.strip().lower()
-        config.model_name = model_name.strip()
-        config.encrypted_key = encrypted
-    else:
-        config = LLMConfig(
-            user_id=user_id,
-            provider=provider.strip().lower(),
-            model_name=model_name.strip(),
-            encrypted_key=encrypted,
-        )
-        db.add(config)
-
-    await db.commit()
-    await db.refresh(config)
-    return config
-
-
-async def get_user_active_llm_credentials(db: AsyncSession, user_id: str) -> tuple[str, str, str] | None:
+async def get_user_active_llm_credentials(
+    db: NativeRepository, user_id: str
+) -> tuple[str, str, str] | None:
     """
-    Returns (provider, model_name, decrypted_api_key) for the user.
-    Falls back to system environment if user has not set a custom key.
+    Returns (provider, model_name, raw_decrypted_api_key) if configured.
     """
-    stmt = select(LLMConfig).where(LLMConfig.user_id == user_id)
-    result = await db.execute(stmt)
-    config = result.scalar_one_or_none()
+    user = await db.get_user_by_idp(user_id)
+    if not user:
+        user = await db.get_user_by_id(user_id)
+    if not user:
+        return None
 
-    if config:
-        try:
-            raw_key = decrypt_key(config.encrypted_key)
-            return config.provider, config.model_name, raw_key
-        except Exception as e:
-            logger.error(f"Failed to decrypt user LLM key: {e}")
-
-    # Fallback to system environment keys if available
-    openai_key = os.environ.get("OPENAI_API_KEY")
-    if openai_key:
-        return "openai", "gpt-4o-mini", openai_key
-
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if anthropic_key:
-        return "anthropic", "claude-3-5-sonnet-20241022", anthropic_key
-
-    gemini_key = os.environ.get("GEMINI_API_KEY")
-    if gemini_key:
-        return "gemini", "gemini-1.5-flash", gemini_key
-
-    return None
-
-
-async def test_llm_connection(provider: str, model_name: str, api_key: str) -> dict[str, Any]:
-    """Tests LLM credentials by sending a lightweight completion request."""
-    model_identifier = model_name
-    if provider == "openai" and not model_name.startswith("openai/"):
-        model_identifier = model_name
-    elif provider == "anthropic" and not model_name.startswith("anthropic/"):
-        model_identifier = f"anthropic/{model_name}"
-    elif provider == "gemini" and not model_name.startswith("gemini/"):
-        model_identifier = f"gemini/{model_name}"
-    elif provider == "groq" and not model_name.startswith("groq/"):
-        model_identifier = f"groq/{model_name}"
-    elif provider == "ollama" and not model_name.startswith("ollama/"):
-        model_identifier = f"ollama/{model_name}"
+    config = await db.get_llm_config(user.id)
+    if not config:
+        return None
 
     try:
-        api_base = os.environ.get("OPENAI_API_BASE") if provider == "openai" else None
-        response = await litellm.acompletion(
-            model=model_identifier,
-            messages=[{"role": "user", "content": "Respond with the single word 'OK'."}],
-            api_key=api_key,
-            api_base=api_base,
-            max_tokens=10,
-            timeout=15,
-        )
-        content = response.choices[0].message.content.strip()
-        return {"success": True, "model": model_identifier, "response": content}
+        raw_key = decrypt_key(config.encrypted_key)
+        return config.provider, config.model_name, raw_key
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        logger.error(f"Failed to decrypt key for user {user_id}: {e}")
+        return None
+
+async def test_llm_connection(provider: str, model_name: str, api_key: str) -> dict[str, Any]:
+    """Tests connectivity to user's LLM provider using LiteLLM."""
+    try:
+        model_ident = f"{provider}/{model_name}" if "/" not in model_name else model_name
+        response = await litellm.acompletion(
+            model=model_ident,
+            messages=[{"role": "user", "content": "ping"}],
+            api_key=api_key,
+            max_tokens=5,
+        )
+        return {"status": "success", "response": response.choices[0].message.content}
+    except Exception as e:
+        logger.warning(f"LLM Test failed for {provider}/{model_name}: {e}")
+        return {"status": "error", "message": str(e)}

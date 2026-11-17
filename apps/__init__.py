@@ -1,0 +1,1 @@
+"""CashBuffer Applications namespace."""

@@ -1,0 +1,2837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tenant Expense Tracker Database Schemas &amp; ERDs</title>
+    <!-- Mermaid.js for interactive crisp ERD diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --border: #475569;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --tenant-accent: #a855f7;
+            --success: #34d399;
+            --card-radius: 12px;
+            --code-bg: #0b1120;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --border: #cbd5e1;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+            --accent: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.1);
+            --tenant-accent: #9333ea;
+            --success: #059669;
+            --code-bg: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 24px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .title-group h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge-pill {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            background: var(--accent-glow);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .title-group p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .theme-btn:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .metric-val {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .metric-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 24px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-secondary);
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: var(--accent-glow);
+            border-radius: 6px 6px 0 0;
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block;
+        }
+
+        .info-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 20px 24px;
+            margin-bottom: 20px;
+        }
+
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .repo-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .repo-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid var(--accent);
+            padding: 4px 10px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .repo-link:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .tag.tenant {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border-color: #a855f7;
+        }
+
+        .arch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .arch-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+
+        .arch-box h4 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .arch-box p, .arch-box ul {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .arch-box ul {
+            padding-left: 20px;
+            margin-top: 4px;
+        }
+
+        .erd-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .section-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .section-bar h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .diagram-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-primary);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .ctrl-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ctrl-btn:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .zoom-level-badge {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 48px;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .mermaid-container {
+            background: #0b1120;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            min-height: 520px;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .mermaid-container.dragging {
+            cursor: grabbing;
+        }
+
+        .mermaid-container svg {
+            max-width: none !important;
+            height: auto !important;
+            transform-origin: center center;
+            transition: transform 0.08s linear;
+        }
+
+        /* Fullscreen Mode */
+        .erd-box:fullscreen,
+        .erd-box:-webkit-full-screen,
+        .erd-box.is-fullscreen {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 999999 !important;
+            background: #090d16 !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            border-radius: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            box-sizing: border-box !important;
+        }
+
+        .erd-box:fullscreen .mermaid-container,
+        .erd-box:-webkit-full-screen .mermaid-container,
+        .erd-box.is-fullscreen .mermaid-container {
+            flex: 1 1 auto !important;
+            height: calc(100vh - 90px) !important;
+            min-height: 0 !important;
+        }
+
+        .schema-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .schema-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .schema-toggle-group {
+            display: flex;
+            gap: 6px;
+            background: var(--bg-primary);
+            padding: 3px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .copy-btn {
+            background: var(--accent);
+            color: #ffffff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            filter: brightness(1.15);
+        }
+
+        .copy-btn.copied {
+            background: var(--success);
+        }
+
+        pre.code-block {
+            background: var(--code-bg);
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.82rem;
+            overflow-x: auto;
+            max-height: 520px;
+            line-height: 1.5;
+            white-space: pre;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table.comp-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        table.comp-table th, table.comp-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table.comp-table th {
+            background: var(--bg-primary);
+            font-weight: 700;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        table.comp-table tr:hover td {
+            background: var(--accent-glow);
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--success);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="title-group">
+                <h1>Open-Source Multi-Tenant Expense Tracker ERDs &amp; Schemas <span class="badge-pill">Production Extracted</span></h1>
+                <p>Comparative database architecture, tenant isolation patterns, interactive ER diagrams, and scraped schemas for scalable financial engines.</p>
+            </div>
+            <div class="header-actions">
+                <button class="theme-btn" id="themeToggle" onclick="toggleTheme()">🌓 Switch Theme</button>
+            </div>
+        </header>
+
+        <!-- Metrics Overview -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Pattern 1: Household/Group</div>
+                <div class="metric-val">Maybe Finance</div>
+                <div class="metric-sub"><code>family_id</code> UUID scoped shared-database schema (Rails/Postgres)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Pattern 2: B2B Enterprise</div>
+                <div class="metric-val">Invoice Ninja</div>
+                <div class="metric-sub"><code>company_id</code> + <code>company_user</code> permission matrix (Laravel/MySQL/PG)</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Pattern 3: Hard DB Compound Key</div>
+                <div class="metric-val">Ghostfolio</div>
+                <div class="metric-sub">Composite primary &amp; foreign keys <code>@@id([id, userId])</code> (Prisma/NestJS/PG)</div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" onclick="openTab('tab-maybe')">1. Maybe Finance (Household Multi-Tenancy)</button>
+            <button class="tab-btn" onclick="openTab('tab-ninja')">2. Invoice Ninja (Enterprise Organization Multi-Tenancy)</button>
+            <button class="tab-btn" onclick="openTab('tab-ghostfolio')">3. Ghostfolio (Composite-Key Multi-Tenancy)</button>
+            <button class="tab-btn" onclick="openTab('tab-comparison')">⚖️ Architecture Comparison Matrix</button>
+        </nav>
+
+        <!-- TAB 1: MAYBE FINANCE -->
+        <section id="tab-maybe" class="tab-pane active">
+            <div class="info-card">
+                <div class="info-header">
+                    <div>
+                        <div class="repo-title">
+                            Maybe Finance
+                            <a href="https://github.com/maybe-finance/maybe" target="_blank" class="repo-link">GitHub ↗</a>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 6px;">
+                            Modern personal &amp; household wealth management OS. Scalable multi-user household partitioning using UUIDs and a polymorphic double-entry ledger design.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="tag-list">
+                    <span class="tag tenant">Tenant Scope: family_id</span>
+                    <span class="tag">Database: PostgreSQL</span>
+                    <span class="tag">ORM: Ruby ActiveRecord</span>
+                    <span class="tag">PK Type: gen_random_uuid()</span>
+                    <span class="tag">Ledger: Polymorphic Entries</span>
+                </div>
+
+                <div class="arch-grid">
+                    <div class="arch-box">
+                        <h4>🛡️ Tenant Isolation Guarantee</h4>
+                        <p>All core resources (<code>accounts</code>, <code>categories</code>, <code>budgets</code>, <code>merchants</code>, <code>tags</code>) enforce non-nullable <code>family_id</code> foreign keys. Multiple users join a single family with roles (owner/member). No cross-family read is possible without explicit family key scoping.</p>
+                    </div>
+                    <div class="arch-box">
+                        <h4>⚡ Scalability &amp; High Throughput</h4>
+                        <p>Separates polymorphic transaction lines (<code>entries</code>) from rich metadata (<code>transactions</code>). Uses precomputed <code>balances</code> daily snapshot tables with unique constraints <code>(account_id, date)</code> to calculate charts instantly without aggregating millions of rows.</p>
+                    </div>
+                    <div class="arch-box">
+                        <h4>🔑 Key Multi-Tenant Indices</h4>
+                        <ul>
+                            <li><code>index_accounts_on_family_id</code></li>
+                            <li><code>index_budgets_on_family_id_and_dates</code></li>
+                            <li><code>index_entries_on_account_id_and_date</code></li>
+                            <li><code>index_merchants_on_family_id_and_name</code> (partial)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ERD Diagram -->
+            <div class="erd-box" id="erd-box-maybe">
+                <div class="section-bar">
+                    <h3>📊 Entity Relationship Diagram (ERD)</h3>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <span class="tag tenant">Multi-tenant boundary: FAMILIES</span>
+                        <div class="diagram-controls">
+                            <button class="ctrl-btn" onclick="zoomDiagram('maybe', 0.2)" title="Zoom In">🔍 +</button>
+                            <span class="zoom-level-badge" id="zoom-label-maybe">100%</span>
+                            <button class="ctrl-btn" onclick="zoomDiagram('maybe', -0.2)" title="Zoom Out">🔍 −</button>
+                            <button class="ctrl-btn" onclick="resetDiagram('maybe')" title="Reset View">↺ Reset</button>
+                            <button class="ctrl-btn" onclick="toggleFullscreen('erd-box-maybe')" title="Fullscreen">⛶ Fullscreen</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mermaid-container" id="container-maybe">
+                    <div style="color:var(--text-muted); font-size:0.9rem;">Rendering diagram...</div>
+                </div>
+            </div>
+
+            <!-- Schema Viewer -->
+            <div class="schema-box">
+                <div class="schema-toolbar">
+                    <div class="schema-toggle-group">
+                        <button class="toggle-btn active" id="btn-maybe-sql" onclick="switchSchemaView('maybe', 'sql')">PostgreSQL DDL (Clean)</button>
+                        <button class="toggle-btn" id="btn-maybe-raw" onclick="switchSchemaView('maybe', 'raw')">Ruby ActiveRecord (Original)</button>
+                    </div>
+                    <button class="copy-btn" id="copy-maybe" onclick="copySchema('maybe')">📋 Copy Schema</button>
+                </div>
+
+                <div id="view-maybe-sql">
+                    <pre class="code-block" id="code-maybe-sql">-- Maybe Finance: Scalable Multi-Tenant PostgreSQL DDL
+-- Tenancy model: Household / Family scoped (`family_id` partition key)
+
+CREATE EXTENSION IF NOT EXISTS &quot;pgcrypto&quot;;
+
+-- Root Tenant Entity: Family / Household
+CREATE TABLE families (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255),
+    currency VARCHAR(3) DEFAULT &#x27;USD&#x27; NOT NULL,
+    locale VARCHAR(10) DEFAULT &#x27;en&#x27; NOT NULL,
+    stripe_customer_id VARCHAR(255),
+    date_format VARCHAR(20) DEFAULT &#x27;%m-%d-%Y&#x27;,
+    country VARCHAR(10) DEFAULT &#x27;US&#x27;,
+    timezone VARCHAR(50),
+    data_enrichment_enabled BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tenant Users (Members of a Family)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    email VARCHAR(255) NOT NULL,
+    password_digest VARCHAR(255),
+    role VARCHAR(50) DEFAULT &#x27;member&#x27; NOT NULL,
+    active BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_users_family_id ON users(family_id);
+CREATE UNIQUE INDEX idx_users_email ON users(email);
+
+-- Financial Accounts (Scoped to Family)
+CREATE TABLE accounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    subtype VARCHAR(50),
+    accountable_type VARCHAR(100),
+    accountable_id UUID,
+    balance NUMERIC(19, 4) DEFAULT 0.0 NOT NULL,
+    cash_balance NUMERIC(19, 4) DEFAULT 0.0 NOT NULL,
+    currency VARCHAR(3) DEFAULT &#x27;USD&#x27; NOT NULL,
+    status VARCHAR(50) DEFAULT &#x27;active&#x27; NOT NULL,
+    locked_attributes JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_accounts_family_id ON accounts(family_id);
+CREATE INDEX idx_accounts_family_status ON accounts(family_id, status);
+
+-- Categories (Custom per family or default)
+CREATE TABLE categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    family_id UUID REFERENCES families(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    color VARCHAR(20),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_categories_family_id ON categories(family_id);
+
+-- Budgets (Scoped per family &amp; date range)
+CREATE TABLE budgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    budgeted_spending NUMERIC(19, 4) DEFAULT 0.0,
+    expected_income NUMERIC(19, 4) DEFAULT 0.0,
+    currency VARCHAR(3) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_budgets_family_date ON budgets(family_id, start_date, end_date);
+
+-- Budget Line Items
+CREATE TABLE budget_categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    budget_id UUID NOT NULL REFERENCES budgets(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    budgeted_spending NUMERIC(19, 4) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_budget_category UNIQUE (budget_id, category_id)
+);
+
+-- Payees / Merchants (Global + Family Overrides)
+CREATE TABLE merchants (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    family_id UUID REFERENCES families(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    color VARCHAR(20),
+    logo_url TEXT,
+    website_url TEXT,
+    type VARCHAR(50) NOT NULL DEFAULT &#x27;Merchant&#x27;,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_merchants_family_id ON merchants(family_id);
+
+-- Transactions Details (Category &amp; Payee classification)
+CREATE TABLE transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+    merchant_id UUID REFERENCES merchants(id) ON DELETE SET NULL,
+    kind VARCHAR(50) DEFAULT &#x27;standard&#x27; NOT NULL,
+    locked_attributes JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_transactions_category ON transactions(category_id);
+CREATE INDEX idx_transactions_merchant ON transactions(merchant_id);
+
+-- Ledger Entries (Polymorphic core transaction table)
+CREATE TABLE entries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    entryable_type VARCHAR(100),
+    entryable_id UUID,
+    amount NUMERIC(19, 4) NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    date DATE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    notes TEXT,
+    excluded BOOLEAN DEFAULT FALSE,
+    locked_attributes JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_entries_account_date ON entries(account_id, date DESC);
+CREATE INDEX idx_entries_entryable ON entries(entryable_type, entryable_id);
+
+-- Daily Balance Snapshots (For fast reporting &amp; charting without aggregate recalculations)
+CREATE TABLE balances (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    balance NUMERIC(19, 4) NOT NULL,
+    cash_balance NUMERIC(19, 4) DEFAULT 0.0,
+    currency VARCHAR(3) DEFAULT &#x27;USD&#x27; NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_account_date UNIQUE (account_id, date)
+);
+CREATE INDEX idx_balances_account_date ON balances(account_id, date DESC);</pre>
+                </div>
+                <div id="view-maybe-raw" style="display:none;">
+                    <pre class="code-block" id="code-maybe-raw">  create_table &quot;accounts&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.string &quot;subtype&quot;
+    t.uuid &quot;family_id&quot;, null: false
+    t.string &quot;name&quot;
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.string &quot;accountable_type&quot;
+    t.uuid &quot;accountable_id&quot;
+    t.decimal &quot;balance&quot;, precision: 19, scale: 4
+    t.string &quot;currency&quot;
+    t.virtual &quot;classification&quot;, type: :string, as: &quot;\nCASE\n    WHEN ((accountable_type)::text = ANY ((ARRAY[&#x27;Loan&#x27;::character varying, &#x27;CreditCard&#x27;::character varying, &#x27;OtherLiability&#x27;::character varying])::text[])) THEN &#x27;liability&#x27;::text\n    ELSE &#x27;asset&#x27;::text\nEND&quot;, stored: true
+    t.uuid &quot;import_id&quot;
+    t.uuid &quot;plaid_account_id&quot;
+    t.decimal &quot;cash_balance&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;
+    t.jsonb &quot;locked_attributes&quot;, default: {}
+    t.string &quot;status&quot;, default: &quot;active&quot;
+    t.index [&quot;accountable_id&quot;, &quot;accountable_type&quot;], name: &quot;index_accounts_on_accountable_id_and_accountable_type&quot;
+    t.index [&quot;accountable_type&quot;], name: &quot;index_accounts_on_accountable_type&quot;
+    t.index [&quot;currency&quot;], name: &quot;index_accounts_on_currency&quot;
+    t.index [&quot;family_id&quot;, &quot;accountable_type&quot;], name: &quot;index_accounts_on_family_id_and_accountable_type&quot;
+    t.index [&quot;family_id&quot;, &quot;id&quot;], name: &quot;index_accounts_on_family_id_and_id&quot;
+    t.index [&quot;family_id&quot;, &quot;status&quot;], name: &quot;index_accounts_on_family_id_and_status&quot;
+    t.index [&quot;family_id&quot;], name: &quot;index_accounts_on_family_id&quot;
+    t.index [&quot;import_id&quot;], name: &quot;index_accounts_on_import_id&quot;
+    t.index [&quot;plaid_account_id&quot;], name: &quot;index_accounts_on_plaid_account_id&quot;
+    t.index [&quot;status&quot;], name: &quot;index_accounts_on_status&quot;
+  end
+
+
+  create_table &quot;balances&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.uuid &quot;account_id&quot;, null: false
+    t.date &quot;date&quot;, null: false
+    t.decimal &quot;balance&quot;, precision: 19, scale: 4, null: false
+    t.string &quot;currency&quot;, default: &quot;USD&quot;, null: false
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.decimal &quot;cash_balance&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;
+    t.decimal &quot;start_cash_balance&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;start_non_cash_balance&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;cash_inflows&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;cash_outflows&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;non_cash_inflows&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;non_cash_outflows&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;net_market_flows&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;cash_adjustments&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.decimal &quot;non_cash_adjustments&quot;, precision: 19, scale: 4, default: &quot;0.0&quot;, null: false
+    t.integer &quot;flows_factor&quot;, default: 1, null: false
+    t.virtual &quot;start_balance&quot;, type: :decimal, precision: 19, scale: 4, as: &quot;(start_cash_balance + start_non_cash_balance)&quot;, stored: true
+    t.virtual &quot;end_cash_balance&quot;, type: :decimal, precision: 19, scale: 4, as: &quot;((start_cash_balance + ((cash_inflows - cash_outflows) * (flows_factor)::numeric)) + cash_adjustments)&quot;, stored: true
+    t.virtual &quot;end_non_cash_balance&quot;, type: :decimal, precision: 19, scale: 4, as: &quot;(((start_non_cash_balance + ((non_cash_inflows - non_cash_outflows) * (flows_factor)::numeric)) + net_market_flows) + non_cash_adjustments)&quot;, stored: true
+    t.virtual &quot;end_balance&quot;, type: :decimal, precision: 19, scale: 4, as: &quot;(((start_cash_balance + ((cash_inflows - cash_outflows) * (flows_factor)::numeric)) + cash_adjustments) + (((start_non_cash_balance + ((non_cash_inflows - non_cash_outflows) * (flows_factor)::numeric)) + net_market_flows) + non_cash_adjustments))&quot;, stored: true
+    t.index [&quot;account_id&quot;, &quot;date&quot;, &quot;currency&quot;], name: &quot;index_account_balances_on_account_id_date_currency_unique&quot;, unique: true
+    t.index [&quot;account_id&quot;, &quot;date&quot;], name: &quot;index_balances_on_account_id_and_date&quot;, order: { date: :desc }
+    t.index [&quot;account_id&quot;], name: &quot;index_balances_on_account_id&quot;
+  end
+
+
+  create_table &quot;budget_categories&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.uuid &quot;budget_id&quot;, null: false
+    t.uuid &quot;category_id&quot;, null: false
+    t.decimal &quot;budgeted_spending&quot;, precision: 19, scale: 4, null: false
+    t.string &quot;currency&quot;, null: false
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.index [&quot;budget_id&quot;, &quot;category_id&quot;], name: &quot;index_budget_categories_on_budget_id_and_category_id&quot;, unique: true
+    t.index [&quot;budget_id&quot;], name: &quot;index_budget_categories_on_budget_id&quot;
+    t.index [&quot;category_id&quot;], name: &quot;index_budget_categories_on_category_id&quot;
+  end
+
+
+  create_table &quot;budgets&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.uuid &quot;family_id&quot;, null: false
+    t.date &quot;start_date&quot;, null: false
+    t.date &quot;end_date&quot;, null: false
+    t.decimal &quot;budgeted_spending&quot;, precision: 19, scale: 4
+    t.decimal &quot;expected_income&quot;, precision: 19, scale: 4
+    t.string &quot;currency&quot;, null: false
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.index [&quot;family_id&quot;, &quot;start_date&quot;, &quot;end_date&quot;], name: &quot;index_budgets_on_family_id_and_start_date_and_end_date&quot;, unique: true
+    t.index [&quot;family_id&quot;], name: &quot;index_budgets_on_family_id&quot;
+  end
+
+
+  create_table &quot;categories&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.string &quot;name&quot;, null: false
+    t.string &quot;color&quot;, default: &quot;#6172F3&quot;, null: false
+    t.uuid &quot;family_id&quot;, null: false
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.uuid &quot;parent_id&quot;
+    t.string &quot;classification&quot;, default: &quot;expense&quot;, null: false
+    t.string &quot;lucide_icon&quot;, default: &quot;shapes&quot;, null: false
+    t.index [&quot;family_id&quot;], name: &quot;index_categories_on_family_id&quot;
+  end
+
+
+  create_table &quot;entries&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.uuid &quot;account_id&quot;, null: false
+    t.string &quot;entryable_type&quot;
+    t.uuid &quot;entryable_id&quot;
+    t.decimal &quot;amount&quot;, precision: 19, scale: 4, null: false
+    t.string &quot;currency&quot;
+    t.date &quot;date&quot;
+    t.string &quot;name&quot;, null: false
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.uuid &quot;import_id&quot;
+    t.text &quot;notes&quot;
+    t.boolean &quot;excluded&quot;, default: false
+    t.string &quot;plaid_id&quot;
+    t.jsonb &quot;locked_attributes&quot;, default: {}
+    t.index &quot;lower((name)::text)&quot;, name: &quot;index_entries_on_lower_name&quot;
+    t.index [&quot;account_id&quot;, &quot;date&quot;], name: &quot;index_entries_on_account_id_and_date&quot;
+    t.index [&quot;account_id&quot;], name: &quot;index_entries_on_account_id&quot;
+    t.index [&quot;date&quot;], name: &quot;index_entries_on_date&quot;
+    t.index [&quot;entryable_type&quot;], name: &quot;index_entries_on_entryable_type&quot;
+    t.index [&quot;import_id&quot;], name: &quot;index_entries_on_import_id&quot;
+  end
+
+
+  create_table &quot;families&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.string &quot;name&quot;
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.string &quot;currency&quot;, default: &quot;USD&quot;
+    t.string &quot;locale&quot;, default: &quot;en&quot;
+    t.string &quot;stripe_customer_id&quot;
+    t.string &quot;date_format&quot;, default: &quot;%m-%d-%Y&quot;
+    t.string &quot;country&quot;, default: &quot;US&quot;
+    t.string &quot;timezone&quot;
+    t.boolean &quot;data_enrichment_enabled&quot;, default: false
+    t.boolean &quot;early_access&quot;, default: false
+    t.boolean &quot;auto_sync_on_login&quot;, default: true, null: false
+    t.datetime &quot;latest_sync_activity_at&quot;, default: -&gt; { &quot;CURRENT_TIMESTAMP&quot; }
+    t.datetime &quot;latest_sync_completed_at&quot;, default: -&gt; { &quot;CURRENT_TIMESTAMP&quot; }
+  end
+
+
+  create_table &quot;merchants&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.string &quot;name&quot;, null: false
+    t.string &quot;color&quot;
+    t.uuid &quot;family_id&quot;
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.string &quot;logo_url&quot;
+    t.string &quot;website_url&quot;
+    t.string &quot;type&quot;, null: false
+    t.string &quot;source&quot;
+    t.string &quot;provider_merchant_id&quot;
+    t.index [&quot;family_id&quot;, &quot;name&quot;], name: &quot;index_merchants_on_family_id_and_name&quot;, unique: true, where: &quot;((type)::text = &#x27;FamilyMerchant&#x27;::text)&quot;
+    t.index [&quot;family_id&quot;], name: &quot;index_merchants_on_family_id&quot;
+    t.index [&quot;source&quot;, &quot;name&quot;], name: &quot;index_merchants_on_source_and_name&quot;, unique: true, where: &quot;((type)::text = &#x27;ProviderMerchant&#x27;::text)&quot;
+    t.index [&quot;type&quot;], name: &quot;index_merchants_on_type&quot;
+  end
+
+
+  create_table &quot;tags&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.string &quot;name&quot;
+    t.string &quot;color&quot;, default: &quot;#e99537&quot;, null: false
+    t.uuid &quot;family_id&quot;, null: false
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.index [&quot;family_id&quot;], name: &quot;index_tags_on_family_id&quot;
+  end
+
+
+  create_table &quot;transactions&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.uuid &quot;category_id&quot;
+    t.uuid &quot;merchant_id&quot;
+    t.jsonb &quot;locked_attributes&quot;, default: {}
+    t.string &quot;kind&quot;, default: &quot;standard&quot;, null: false
+    t.index [&quot;category_id&quot;], name: &quot;index_transactions_on_category_id&quot;
+    t.index [&quot;kind&quot;], name: &quot;index_transactions_on_kind&quot;
+    t.index [&quot;merchant_id&quot;], name: &quot;index_transactions_on_merchant_id&quot;
+  end
+
+
+  create_table &quot;transfers&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.uuid &quot;inflow_transaction_id&quot;, null: false
+    t.uuid &quot;outflow_transaction_id&quot;, null: false
+    t.string &quot;status&quot;, default: &quot;pending&quot;, null: false
+    t.text &quot;notes&quot;
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.index [&quot;inflow_transaction_id&quot;, &quot;outflow_transaction_id&quot;], name: &quot;idx_on_inflow_transaction_id_outflow_transaction_id_8cd07a28bd&quot;, unique: true
+    t.index [&quot;inflow_transaction_id&quot;], name: &quot;index_transfers_on_inflow_transaction_id&quot;
+    t.index [&quot;outflow_transaction_id&quot;], name: &quot;index_transfers_on_outflow_transaction_id&quot;
+    t.index [&quot;status&quot;], name: &quot;index_transfers_on_status&quot;
+  end
+
+
+  create_table &quot;users&quot;, id: :uuid, default: -&gt; { &quot;gen_random_uuid()&quot; }, force: :cascade do |t|
+    t.uuid &quot;family_id&quot;, null: false
+    t.string &quot;first_name&quot;
+    t.string &quot;last_name&quot;
+    t.string &quot;email&quot;
+    t.string &quot;password_digest&quot;
+    t.datetime &quot;created_at&quot;, null: false
+    t.datetime &quot;updated_at&quot;, null: false
+    t.string &quot;role&quot;, default: &quot;member&quot;, null: false
+    t.boolean &quot;active&quot;, default: true, null: false
+    t.datetime &quot;onboarded_at&quot;
+    t.string &quot;unconfirmed_email&quot;
+    t.string &quot;otp_secret&quot;
+    t.boolean &quot;otp_required&quot;, default: false, null: false
+    t.string &quot;otp_backup_codes&quot;, default: [], array: true
+    t.boolean &quot;show_sidebar&quot;, default: true
+    t.string &quot;default_period&quot;, default: &quot;last_30_days&quot;, null: false
+    t.uuid &quot;last_viewed_chat_id&quot;
+    t.boolean &quot;show_ai_sidebar&quot;, default: true
+    t.boolean &quot;ai_enabled&quot;, default: false, null: false
+    t.string &quot;theme&quot;, default: &quot;system&quot;
+    t.boolean &quot;rule_prompts_disabled&quot;, default: false
+    t.datetime &quot;rule_prompt_dismissed_at&quot;
+    t.text &quot;goals&quot;, default: [], array: true
+    t.datetime &quot;set_onboarding_preferences_at&quot;
+    t.datetime &quot;set_onboarding_goals_at&quot;
+    t.index [&quot;email&quot;], name: &quot;index_users_on_email&quot;, unique: true
+    t.index [&quot;family_id&quot;], name: &quot;index_users_on_family_id&quot;
+    t.index [&quot;last_viewed_chat_id&quot;], name: &quot;index_users_on_last_viewed_chat_id&quot;
+    t.index [&quot;otp_secret&quot;], name: &quot;index_users_on_otp_secret&quot;, unique: true, where: &quot;(otp_secret IS NOT NULL)&quot;
+  end
+</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: INVOICE NINJA -->
+        <section id="tab-ninja" class="tab-pane">
+            <div class="info-card">
+                <div class="info-header">
+                    <div>
+                        <div class="repo-title">
+                            Invoice Ninja (v5)
+                            <a href="https://github.com/invoiceninja/invoiceninja" target="_blank" class="repo-link">GitHub ↗</a>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 6px;">
+                            High-volume enterprise B2B invoicing &amp; expense management platform. Employs multi-company organization scoping with a dedicated tenant join table (<code>company_user</code>) with JSON permission matrices.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="tag-list">
+                    <span class="tag tenant">Tenant Scope: company_id</span>
+                    <span class="tag">Database: MySQL / PostgreSQL</span>
+                    <span class="tag">Framework: Laravel 10</span>
+                    <span class="tag">Pattern: Organization Multi-Tenancy</span>
+                    <span class="tag">Features: Soft Deletes, Multi-Currency, Granular Roles</span>
+                </div>
+
+                <div class="arch-grid">
+                    <div class="arch-box">
+                        <h4>🏢 B2B Organization Tenancy</h4>
+                        <p>Global <code>users</code> and <code>accounts</code> can belong to multiple <code>companies</code>. Each company has isolated expenses, vendors, clients, invoices, and expense categories. Access is regulated via <code>company_user.permissions</code>.</p>
+                    </div>
+                    <div class="arch-box">
+                        <h4>⚡ Scalability &amp; Partitioning</h4>
+                        <p>All core tables include <code>company_id</code> as an indexed leading column. Composite indices on <code>(company_id, is_deleted, expense_date)</code> prevent full-table scans and make sharding or database partition by company seamless.</p>
+                    </div>
+                    <div class="arch-box">
+                        <h4>🔑 Key Multi-Tenant Indices</h4>
+                        <ul>
+                            <li><code>idx_expenses_company_date (company_id, expense_date)</code></li>
+                            <li><code>idx_expenses_company_deleted (company_id, is_deleted)</code></li>
+                            <li><code>idx_company_user (company_id, user_id) UNIQUE</code></li>
+                            <li><code>idx_vendors_company (company_id, is_deleted)</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ERD Diagram -->
+            <div class="erd-box" id="erd-box-ninja">
+                <div class="section-bar">
+                    <h3>📊 Entity Relationship Diagram (ERD)</h3>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <span class="tag tenant">Multi-tenant boundary: COMPANIES</span>
+                        <div class="diagram-controls">
+                            <button class="ctrl-btn" onclick="zoomDiagram('ninja', 0.2)" title="Zoom In">🔍 +</button>
+                            <span class="zoom-level-badge" id="zoom-label-ninja">100%</span>
+                            <button class="ctrl-btn" onclick="zoomDiagram('ninja', -0.2)" title="Zoom Out">🔍 −</button>
+                            <button class="ctrl-btn" onclick="resetDiagram('ninja')" title="Reset View">↺ Reset</button>
+                            <button class="ctrl-btn" onclick="toggleFullscreen('erd-box-ninja')" title="Fullscreen">⛶ Fullscreen</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mermaid-container" id="container-ninja">
+                    <div style="color:var(--text-muted); font-size:0.9rem;">Rendering diagram...</div>
+                </div>
+            </div>
+
+            <!-- Schema Viewer -->
+            <div class="schema-box">
+                <div class="schema-toolbar">
+                    <div class="schema-toggle-group">
+                        <button class="toggle-btn active" id="btn-ninja-sql" onclick="switchSchemaView('ninja', 'sql')">PostgreSQL DDL (Clean)</button>
+                        <button class="toggle-btn" id="btn-ninja-raw" onclick="switchSchemaView('ninja', 'raw')">Laravel Blueprint (Original)</button>
+                    </div>
+                    <button class="copy-btn" id="copy-ninja" onclick="copySchema('ninja')">📋 Copy Schema</button>
+                </div>
+
+                <div id="view-ninja-sql">
+                    <pre class="code-block" id="code-ninja-sql">-- Invoice Ninja: Enterprise Multi-Company Multi-Tenant DDL
+-- Tenancy model: Organization scoped (`company_id` partition key with composite indices)
+
+CREATE EXTENSION IF NOT EXISTS &quot;pgcrypto&quot;;
+
+-- Top-Level Billing &amp; Subscription Account
+CREATE TABLE accounts (
+    id BIGSERIAL PRIMARY KEY,
+    plan VARCHAR(50) DEFAULT &#x27;enterprise&#x27;,
+    plan_term VARCHAR(20) DEFAULT &#x27;month&#x27;,
+    plan_started DATE,
+    plan_expires DATE,
+    default_company_id BIGINT,
+    num_users INT DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tenant Isolation Root: Company / Organization
+CREATE TABLE companies (
+    id BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    company_key VARCHAR(100) UNIQUE NOT NULL,
+    industry_id INT,
+    logo TEXT,
+    settings JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_companies_account ON companies(account_id);
+
+-- System Users (Cross-company identity)
+CREATE TABLE users (
+    id BIGSERIAL PRIMARY KEY,
+    account_id BIGINT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255),
+    is_admin BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_account ON users(account_id);
+
+-- Tenant Membership &amp; Granular Access Control
+CREATE TABLE company_user (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    account_id BIGINT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    permissions JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    notifications JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    settings JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    is_admin BOOLEAN DEFAULT FALSE,
+    is_owner BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_company_user UNIQUE (company_id, user_id)
+);
+CREATE INDEX idx_company_user_user ON company_user(user_id);
+CREATE INDEX idx_company_user_company ON company_user(company_id);
+
+-- Expense Categories (Scoped to Company)
+CREATE TABLE expense_categories (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    color VARCHAR(30),
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_expense_categories_company ON expense_categories(company_id, is_deleted);
+
+-- Vendors / Suppliers (Scoped to Company)
+CREATE TABLE vendors (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    currency_id INT DEFAULT 1,
+    website VARCHAR(255),
+    phone VARCHAR(50),
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_vendors_company ON vendors(company_id, is_deleted);
+
+-- Clients / Billable Customers (Scoped to Company)
+CREATE TABLE clients (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    currency_id INT DEFAULT 1,
+    balance NUMERIC(13, 2) DEFAULT 0.00,
+    paid_to_date NUMERIC(13, 2) DEFAULT 0.00,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_clients_company ON clients(company_id, is_deleted);
+
+-- Expenses (Core Multi-Tenant Ledger Record)
+CREATE TABLE expenses (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    assigned_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    vendor_id BIGINT REFERENCES vendors(id) ON DELETE SET NULL,
+    client_id BIGINT REFERENCES clients(id) ON DELETE SET NULL,
+    invoice_category_id BIGINT REFERENCES expense_categories(id) ON DELETE SET NULL,
+    invoice_currency_id INT NOT NULL DEFAULT 1,
+    expense_currency_id INT NOT NULL DEFAULT 1,
+    amount NUMERIC(13, 2) NOT NULL,
+    foreign_amount NUMERIC(13, 2) NOT NULL,
+    exchange_rate NUMERIC(13, 6) DEFAULT 1.000000,
+    tax_name1 VARCHAR(50),
+    tax_rate1 NUMERIC(13, 3) DEFAULT 0,
+    expense_date DATE NOT NULL,
+    payment_date DATE,
+    transaction_reference VARCHAR(255),
+    private_notes TEXT,
+    public_notes TEXT,
+    should_be_invoiced BOOLEAN DEFAULT FALSE,
+    is_deleted BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+-- High-throughput composite indices for tenant-isolated querying
+CREATE INDEX idx_expenses_company_date ON expenses(company_id, expense_date DESC);
+CREATE INDEX idx_expenses_company_deleted ON expenses(company_id, is_deleted);
+CREATE INDEX idx_expenses_company_vendor ON expenses(company_id, vendor_id);
+CREATE INDEX idx_expenses_company_client ON expenses(company_id, client_id);</pre>
+                </div>
+                <div id="view-ninja-raw" style="display:none;">
+                    <pre class="code-block" id="code-ninja-raw">Schema::create(&#x27;accounts&#x27;, function ($table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+
+            $table-&gt;enum(&#x27;plan&#x27;, [&#x27;pro&#x27;, &#x27;enterprise&#x27;, &#x27;white_label&#x27;])-&gt;nullable();
+            $table-&gt;enum(&#x27;plan_term&#x27;, [&#x27;month&#x27;, &#x27;year&#x27;])-&gt;nullable();
+            $table-&gt;date(&#x27;plan_started&#x27;)-&gt;nullable();
+            $table-&gt;date(&#x27;plan_paid&#x27;)-&gt;nullable();
+            $table-&gt;date(&#x27;plan_expires&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;user_agent&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;key&#x27;)-&gt;nullable();
+
+            $table-&gt;unsignedInteger(&#x27;payment_id&#x27;)-&gt;nullable()-&gt;index();
+            $table-&gt;unsignedInteger(&#x27;default_company_id&#x27;);
+
+            $table-&gt;date(&#x27;trial_started&#x27;)-&gt;nullable();
+            $table-&gt;enum(&#x27;trial_plan&#x27;, [&#x27;pro&#x27;, &#x27;enterprise&#x27;])-&gt;nullable();
+
+            $table-&gt;decimal(&#x27;plan_price&#x27;, 7, 2)-&gt;nullable();
+            $table-&gt;smallInteger(&#x27;num_users&#x27;)-&gt;default(1);
+
+            $table-&gt;string(&#x27;utm_source&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;utm_medium&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;utm_campaign&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;utm_term&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;utm_content&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;latest_version&#x27;)-&gt;default(&#x27;0.0.0&#x27;);
+            $table-&gt;boolean(&#x27;report_errors&#x27;)-&gt;default(false);
+
+            $table-&gt;string(&#x27;referral_code&#x27;)-&gt;nullable();
+
+            $table-&gt;timestamps(6);
+        });
+
+Schema::create(&#x27;companies&#x27;, function (Blueprint $table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+            //$table-&gt;string(&#x27;name&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;account_id&#x27;)-&gt;index();
+            $table-&gt;unsignedInteger(&#x27;industry_id&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;ip&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;company_key&#x27;, 100)-&gt;unique();
+            $table-&gt;string(&#x27;logo&#x27;)-&gt;nullable();
+            $table-&gt;boolean(&#x27;convert_products&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;fill_products&#x27;)-&gt;default(true);
+            $table-&gt;boolean(&#x27;update_products&#x27;)-&gt;default(true);
+            $table-&gt;boolean(&#x27;show_product_details&#x27;)-&gt;default(true);
+            $table-&gt;boolean(&#x27;client_can_register&#x27;)-&gt;default(false);
+
+            $table-&gt;boolean(&#x27;custom_surcharge_taxes1&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;custom_surcharge_taxes2&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;custom_surcharge_taxes3&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;custom_surcharge_taxes4&#x27;)-&gt;default(false);
+            //$table-&gt;boolean(&#x27;enable_invoice_quantity&#x27;)-&gt;default(true);
+            $table-&gt;boolean(&#x27;show_product_cost&#x27;)-&gt;default(false);
+            $table-&gt;unsignedInteger(&#x27;enabled_tax_rates&#x27;)-&gt;default(0);
+            $table-&gt;unsignedInteger(&#x27;enabled_modules&#x27;)-&gt;default(0);
+
+            $table-&gt;boolean(&#x27;enable_product_cost&#x27;)-&gt;default(0);
+            $table-&gt;boolean(&#x27;enable_product_quantity&#x27;)-&gt;default(1);
+            $table-&gt;boolean(&#x27;default_quantity&#x27;)-&gt;default(1);
+
+            $table-&gt;string(&#x27;subdomain&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;db&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;size_id&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;first_day_of_week&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;first_month_of_year&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;portal_mode&#x27;)-&gt;default(&#x27;subdomain&#x27;);
+            $table-&gt;string(&#x27;portal_domain&#x27;)-&gt;nullable();
+
+            $table-&gt;smallInteger(&#x27;enable_modules&#x27;)-&gt;default(0);
+            $table-&gt;mediumText(&#x27;custom_fields&#x27;);
+            $table-&gt;mediumText(&#x27;settings&#x27;);
+
+            $table-&gt;string(&#x27;slack_webhook_url&#x27;);
+            $table-&gt;string(&#x27;google_analytics_url&#x27;);
+
+            $table-&gt;timestamps(6);
+            //$table-&gt;softDeletes(&#x27;deleted_at&#x27;, 6);
+
+            //$table-&gt;foreign(&#x27;country_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;countries&#x27;);
+            $table-&gt;foreign(&#x27;industry_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;industries&#x27;);
+            $table-&gt;foreign(&#x27;size_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;sizes&#x27;);
+            $table-&gt;foreign(&#x27;account_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;accounts&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+        });
+
+Schema::create(&#x27;company_user&#x27;, function (Blueprint $table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;company_id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;account_id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;user_id&#x27;)-&gt;index();
+            $table-&gt;mediumText(&#x27;permissions&#x27;)-&gt;nullable();
+            $table-&gt;mediumText(&#x27;notifications&#x27;)-&gt;nullable();
+            $table-&gt;mediumText(&#x27;settings&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;slack_webhook_url&#x27;);
+            $table-&gt;boolean(&#x27;is_owner&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;is_admin&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;is_migrating&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;is_locked&#x27;)-&gt;default(false); // locks user out of account
+
+            $table-&gt;softDeletes(&#x27;deleted_at&#x27;, 6);
+            $table-&gt;timestamps(6);
+
+            $table-&gt;foreign(&#x27;company_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;companies&#x27;)-&gt;onDelete(&#x27;cascade&#x27;);
+            $table-&gt;foreign(&#x27;account_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;accounts&#x27;)-&gt;onDelete(&#x27;cascade&#x27;);
+            //  $table-&gt;foreign(&#x27;user_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;users&#x27;)-&gt;onDelete(&#x27;cascade&#x27;);
+
+            $table-&gt;unique([&#x27;company_id&#x27;, &#x27;user_id&#x27;]);
+            $table-&gt;index([&#x27;account_id&#x27;, &#x27;company_id&#x27;, &#x27;deleted_at&#x27;]);
+        });
+
+Schema::create(&#x27;users&#x27;, function (Blueprint $table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;account_id&#x27;)-&gt;index();
+            $table-&gt;string(&#x27;first_name&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;last_name&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;phone&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;ip&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;device_token&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;email&#x27;, 100)-&gt;unique();
+            $table-&gt;timestamp(&#x27;email_verified_at&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;confirmation_code&#x27;)-&gt;nullable();
+            $table-&gt;integer(&#x27;theme_id&#x27;)-&gt;nullable();
+            $table-&gt;smallInteger(&#x27;failed_logins&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;referral_code&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;oauth_user_id&#x27;, 100)-&gt;nullable();
+            $table-&gt;string(&#x27;oauth_user_token&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;oauth_provider_id&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;google_2fa_secret&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;accepted_terms_version&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;avatar&#x27;, 100)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;avatar_width&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;avatar_height&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;avatar_size&#x27;)-&gt;nullable();
+            $table-&gt;boolean(&#x27;is_deleted&#x27;)-&gt;default(false);
+
+            $table-&gt;datetime(&#x27;last_login&#x27;)-&gt;nullable();
+            $table-&gt;mediumText(&#x27;signature&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;password&#x27;);
+            $table-&gt;rememberToken();
+            $table-&gt;string(&#x27;custom_value1&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value2&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value3&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value4&#x27;)-&gt;nullable();
+
+            $table-&gt;timestamps(6);
+            $table-&gt;softDeletes(&#x27;deleted_at&#x27;, 6);
+
+            $table-&gt;unique([&#x27;oauth_user_id&#x27;, &#x27;oauth_provider_id&#x27;]);
+
+            $table-&gt;foreign(&#x27;account_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;accounts&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+        });
+
+Schema::create(&#x27;clients&#x27;, function (Blueprint $table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;company_id&#x27;)-&gt;index();
+            $table-&gt;unsignedInteger(&#x27;user_id&#x27;)-&gt;index();
+            $table-&gt;unsignedInteger(&#x27;assigned_user_id&#x27;)-&gt;nullable();
+
+            $table-&gt;string(&#x27;name&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;website&#x27;)-&gt;nullable();
+            $table-&gt;text(&#x27;private_notes&#x27;)-&gt;nullable();
+            $table-&gt;text(&#x27;public_notes&#x27;)-&gt;nullable();
+            $table-&gt;text(&#x27;client_hash&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;logo&#x27;, 255)-&gt;nullable();
+            $table-&gt;string(&#x27;phone&#x27;, 255)-&gt;nullable();
+
+            $table-&gt;decimal(&#x27;balance&#x27;, 16, 4)-&gt;default(0);
+            $table-&gt;decimal(&#x27;paid_to_date&#x27;, 16, 4)-&gt;default(0);
+            $table-&gt;decimal(&#x27;credit_balance&#x27;, 16, 4)-&gt;default(0);
+            $table-&gt;timestamp(&#x27;last_login&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;industry_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;size_id&#x27;)-&gt;nullable();
+            //  $table-&gt;unsignedInteger(&#x27;currency_id&#x27;)-&gt;nullable();
+
+            $table-&gt;string(&#x27;address1&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;address2&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;city&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;state&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;postal_code&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;country_id&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value1&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value2&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value3&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value4&#x27;)-&gt;nullable();
+
+            $table-&gt;string(&#x27;shipping_address1&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;shipping_address2&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;shipping_city&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;shipping_state&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;shipping_postal_code&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;shipping_country_id&#x27;)-&gt;nullable();
+            $table-&gt;mediumText(&#x27;settings&#x27;)-&gt;nullable();
+
+            $table-&gt;boolean(&#x27;is_deleted&#x27;)-&gt;default(false);
+            $table-&gt;unsignedInteger(&#x27;group_settings_id&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;vat_number&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;id_number&#x27;)-&gt;nullable();
+
+            $table-&gt;timestamps(6);
+            $table-&gt;softDeletes(&#x27;deleted_at&#x27;, 6);
+            $table-&gt;index([&#x27;company_id&#x27;, &#x27;deleted_at&#x27;]);
+
+            $table-&gt;foreign(&#x27;company_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;companies&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $table-&gt;foreign(&#x27;industry_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;industries&#x27;);
+            $table-&gt;foreign(&#x27;size_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;sizes&#x27;);
+            //  $table-&gt;foreign(&#x27;currency_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;currencies&#x27;);
+        });
+
+Schema::create(&#x27;invoices&#x27;, function ($t) {
+            $t-&gt;increments(&#x27;id&#x27;);
+            $t-&gt;unsignedInteger(&#x27;client_id&#x27;)-&gt;index();
+            $t-&gt;unsignedInteger(&#x27;user_id&#x27;);
+            $t-&gt;unsignedInteger(&#x27;assigned_user_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;company_id&#x27;)-&gt;index();
+            $t-&gt;unsignedInteger(&#x27;status_id&#x27;);
+            $t-&gt;unsignedInteger(&#x27;project_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;vendor_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;recurring_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;design_id&#x27;)-&gt;nullable();
+
+            $t-&gt;string(&#x27;number&#x27;)-&gt;nullable();
+            $t-&gt;float(&#x27;discount&#x27;)-&gt;default(0);
+            $t-&gt;boolean(&#x27;is_amount_discount&#x27;)-&gt;default(0);
+
+            $t-&gt;string(&#x27;po_number&#x27;)-&gt;nullable();
+            $t-&gt;date(&#x27;date&#x27;)-&gt;nullable();
+            $t-&gt;date(&#x27;last_sent_date&#x27;)-&gt;nullable();
+
+            $t-&gt;datetime(&#x27;due_date&#x27;)-&gt;nullable();
+
+            $t-&gt;boolean(&#x27;is_deleted&#x27;)-&gt;default(false);
+
+            $t-&gt;mediumText(&#x27;line_items&#x27;)-&gt;nullable();
+            $t-&gt;mediumText(&#x27;backup&#x27;)-&gt;nullable();
+            $t-&gt;text(&#x27;footer&#x27;)-&gt;nullable();
+            $t-&gt;text(&#x27;public_notes&#x27;)-&gt;nullable();
+            $t-&gt;text(&#x27;private_notes&#x27;)-&gt;nullable();
+            $t-&gt;text(&#x27;terms&#x27;)-&gt;nullable();
+
+            $t-&gt;string(&#x27;tax_name1&#x27;)-&gt;nullable();
+            $t-&gt;decimal(&#x27;tax_rate1&#x27;, 13, 3)-&gt;default(0);
+
+            $t-&gt;string(&#x27;tax_name2&#x27;)-&gt;nullable();
+            $t-&gt;decimal(&#x27;tax_rate2&#x27;, 13, 3)-&gt;default(0);
+
+            $t-&gt;string(&#x27;tax_name3&#x27;)-&gt;nullable();
+            $t-&gt;decimal(&#x27;tax_rate3&#x27;, 13, 3)-&gt;default(0);
+
+            $t-&gt;decimal(&#x27;total_taxes&#x27;, 13, 3)-&gt;default(0);
+
+            $t-&gt;boolean(&#x27;uses_inclusive_taxes&#x27;)-&gt;default(0);
+
+            $t-&gt;string(&#x27;custom_value1&#x27;)-&gt;nullable();
+            $t-&gt;string(&#x27;custom_value2&#x27;)-&gt;nullable();
+            $t-&gt;string(&#x27;custom_value3&#x27;)-&gt;nullable();
+            $t-&gt;string(&#x27;custom_value4&#x27;)-&gt;nullable();
+            $t-&gt;datetime(&#x27;next_send_date&#x27;)-&gt;nullable();
+
+            $t-&gt;decimal(&#x27;custom_surcharge1&#x27;, 20, 6)-&gt;nullable();
+            $t-&gt;decimal(&#x27;custom_surcharge2&#x27;, 20, 6)-&gt;nullable();
+            $t-&gt;decimal(&#x27;custom_surcharge3&#x27;, 20, 6)-&gt;nullable();
+            $t-&gt;decimal(&#x27;custom_surcharge4&#x27;, 20, 6)-&gt;nullable();
+            $t-&gt;boolean(&#x27;custom_surcharge_tax1&#x27;)-&gt;default(false);
+            $t-&gt;boolean(&#x27;custom_surcharge_tax2&#x27;)-&gt;default(false);
+            $t-&gt;boolean(&#x27;custom_surcharge_tax3&#x27;)-&gt;default(false);
+            $t-&gt;boolean(&#x27;custom_surcharge_tax4&#x27;)-&gt;default(false);
+
+            $t-&gt;decimal(&#x27;exchange_rate&#x27;, 13, 6)-&gt;default(1);
+            $t-&gt;decimal(&#x27;amount&#x27;, 16, 4);
+            $t-&gt;decimal(&#x27;balance&#x27;, 16, 4);
+            $t-&gt;decimal(&#x27;partial&#x27;, 16, 4)-&gt;nullable();
+            $t-&gt;datetime(&#x27;partial_due_date&#x27;)-&gt;nullable();
+
+            $t-&gt;datetime(&#x27;last_viewed&#x27;)-&gt;nullable();
+
+            $t-&gt;foreign(&#x27;client_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;clients&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $t-&gt;foreign(&#x27;company_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;companies&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $t-&gt;foreign(&#x27;user_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;users&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+
+            $t-&gt;timestamps(6);
+            $t-&gt;softDeletes(&#x27;deleted_at&#x27;, 6);
+            $t-&gt;index([&#x27;company_id&#x27;, &#x27;deleted_at&#x27;]);
+
+            $t-&gt;unique([&#x27;company_id&#x27;, &#x27;number&#x27;]);
+        });
+
+Schema::create(&#x27;payments&#x27;, function ($t) {
+            $t-&gt;increments(&#x27;id&#x27;);
+            $t-&gt;unsignedInteger(&#x27;company_id&#x27;)-&gt;index();
+            $t-&gt;unsignedInteger(&#x27;client_id&#x27;)-&gt;index();
+            $t-&gt;unsignedInteger(&#x27;project_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;vendor_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;user_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;assigned_user_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;client_contact_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;invitation_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;company_gateway_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;gateway_type_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;type_id&#x27;)-&gt;nullable();
+            $t-&gt;unsignedInteger(&#x27;status_id&#x27;)-&gt;index();
+            $t-&gt;decimal(&#x27;amount&#x27;, 16, 4)-&gt;default(0);
+            $t-&gt;decimal(&#x27;refunded&#x27;, 16, 4)-&gt;default(0);
+            $t-&gt;decimal(&#x27;applied&#x27;, 16, 4)-&gt;default(0);
+            $t-&gt;date(&#x27;date&#x27;)-&gt;nullable();
+            $t-&gt;string(&#x27;transaction_reference&#x27;)-&gt;nullable();
+            $t-&gt;string(&#x27;payer_id&#x27;)-&gt;nullable();
+            $t-&gt;string(&#x27;number&#x27;)-&gt;nullable();
+            $t-&gt;text(&#x27;private_notes&#x27;)-&gt;nullable();
+            $t-&gt;timestamps(6);
+            $t-&gt;softDeletes(&#x27;deleted_at&#x27;, 6);
+            $t-&gt;boolean(&#x27;is_deleted&#x27;)-&gt;default(false);
+            $t-&gt;boolean(&#x27;is_manual&#x27;)-&gt;default(false);
+            $t-&gt;decimal(&#x27;exchange_rate&#x27;, 13, 6)-&gt;default(1);
+            $t-&gt;unsignedInteger(&#x27;currency_id&#x27;);
+            $t-&gt;unsignedInteger(&#x27;exchange_currency_id&#x27;);
+
+            $t-&gt;index([&#x27;company_id&#x27;, &#x27;deleted_at&#x27;]);
+            $t-&gt;unique([&#x27;company_id&#x27;, &#x27;number&#x27;]);
+            $t-&gt;foreign(&#x27;company_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;companies&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $t-&gt;foreign(&#x27;client_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;clients&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $t-&gt;foreign(&#x27;client_contact_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;client_contacts&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $t-&gt;foreign(&#x27;company_gateway_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;company_gateways&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $t-&gt;foreign(&#x27;user_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;users&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+        });
+
+Schema::create(&#x27;vendors&#x27;, function (Blueprint $table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+            $table-&gt;timestamps(6);
+            $table-&gt;softDeletes();
+            $table-&gt;unsignedInteger(&#x27;user_id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;assigned_user_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;company_id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;currency_id&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;name&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;address1&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;address2&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;city&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;state&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;postal_code&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;country_id&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;work_phone&#x27;)-&gt;nullable();
+            $table-&gt;text(&#x27;private_notes&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;website&#x27;)-&gt;nullable();
+            $table-&gt;tinyInteger(&#x27;is_deleted&#x27;)-&gt;default(0);
+            $table-&gt;string(&#x27;vat_number&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;transaction_name&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;id_number&#x27;)-&gt;nullable();
+
+            $table-&gt;string(&#x27;custom_value1&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value2&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value3&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value4&#x27;)-&gt;nullable();
+
+            $table-&gt;index([&#x27;company_id&#x27;, &#x27;deleted_at&#x27;]);
+
+            $table-&gt;foreign(&#x27;company_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;companies&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $table-&gt;foreign(&#x27;user_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;users&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $table-&gt;foreign(&#x27;country_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;countries&#x27;);
+            $table-&gt;foreign(&#x27;currency_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;currencies&#x27;);
+        });
+
+Schema::create(&#x27;expense_categories&#x27;, function ($table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;user_id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;company_id&#x27;)-&gt;index();
+            $table-&gt;string(&#x27;name&#x27;)-&gt;nullable();
+            $table-&gt;timestamps(6);
+            $table-&gt;softDeletes();
+
+            $table-&gt;index([&#x27;company_id&#x27;, &#x27;deleted_at&#x27;]);
+            $table-&gt;foreign(&#x27;company_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;companies&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+        });
+
+Schema::create(&#x27;expenses&#x27;, function (Blueprint $table) {
+            $table-&gt;increments(&#x27;id&#x27;);
+            $table-&gt;timestamps(6);
+            $table-&gt;softDeletes();
+
+            $table-&gt;unsignedInteger(&#x27;company_id&#x27;)-&gt;index();
+            $table-&gt;unsignedInteger(&#x27;vendor_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;user_id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;assigned_user_id&#x27;);
+            $table-&gt;unsignedInteger(&#x27;invoice_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;client_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;bank_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;invoice_currency_id&#x27;)-&gt;nullable(false);
+            $table-&gt;unsignedInteger(&#x27;expense_currency_id&#x27;)-&gt;nullable(false);
+            $table-&gt;unsignedInteger(&#x27;invoice_category_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;payment_type_id&#x27;)-&gt;nullable();
+            $table-&gt;unsignedInteger(&#x27;recurring_expense_id&#x27;)-&gt;nullable();
+            $table-&gt;boolean(&#x27;is_deleted&#x27;)-&gt;default(false);
+            $table-&gt;decimal(&#x27;amount&#x27;, 13, 2);
+            $table-&gt;decimal(&#x27;foreign_amount&#x27;, 13, 2);
+            $table-&gt;decimal(&#x27;exchange_rate&#x27;, 13, 6)-&gt;default(1);
+            $table-&gt;string(&#x27;tax_name1&#x27;)-&gt;nullable();
+            $table-&gt;decimal(&#x27;tax_rate1&#x27;, 13, 3)-&gt;default(0);
+            $table-&gt;string(&#x27;tax_name2&#x27;)-&gt;nullable();
+            $table-&gt;decimal(&#x27;tax_rate2&#x27;, 13, 3)-&gt;default(0);
+            $table-&gt;string(&#x27;tax_name3&#x27;)-&gt;nullable();
+            $table-&gt;decimal(&#x27;tax_rate3&#x27;, 13, 3)-&gt;default(0);
+            $table-&gt;date(&#x27;expense_date&#x27;)-&gt;nullable();
+            $table-&gt;date(&#x27;payment_date&#x27;)-&gt;nullable();
+            $table-&gt;text(&#x27;private_notes&#x27;);
+            $table-&gt;text(&#x27;public_notes&#x27;);
+            $table-&gt;text(&#x27;transaction_reference&#x27;);
+            $table-&gt;boolean(&#x27;should_be_invoiced&#x27;)-&gt;default(false);
+            $table-&gt;boolean(&#x27;invoice_documents&#x27;)-&gt;default();
+            $table-&gt;string(&#x27;transaction_id&#x27;)-&gt;nullable();
+
+            $table-&gt;string(&#x27;custom_value1&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value2&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value3&#x27;)-&gt;nullable();
+            $table-&gt;string(&#x27;custom_value4&#x27;)-&gt;nullable();
+
+            $table-&gt;index([&#x27;company_id&#x27;, &#x27;deleted_at&#x27;]);
+
+            // Relations
+            $table-&gt;foreign(&#x27;company_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;companies&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+            $table-&gt;foreign(&#x27;user_id&#x27;)-&gt;references(&#x27;id&#x27;)-&gt;on(&#x27;users&#x27;)-&gt;onDelete(&#x27;cascade&#x27;)-&gt;onUpdate(&#x27;cascade&#x27;);
+        });</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: GHOSTFOLIO -->
+        <section id="tab-ghostfolio" class="tab-pane">
+            <div class="info-card">
+                <div class="info-header">
+                    <div>
+                        <div class="repo-title">
+                            Ghostfolio
+                            <a href="https://github.com/ghostfolio/ghostfolio" target="_blank" class="repo-link">GitHub ↗</a>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 6px;">
+                            Privacy-first wealth, expense &amp; portfolio tracking software. Implements composite primary &amp; foreign key constraints (<code>[id, userId]</code>) at the database layer to mathematically guarantee zero data leaks across tenants.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="tag-list">
+                    <span class="tag tenant">Tenant Scope: Composite [id, userId]</span>
+                    <span class="tag">Database: PostgreSQL</span>
+                    <span class="tag">ORM: Prisma</span>
+                    <span class="tag">Backend: NestJS / TypeScript</span>
+                    <span class="tag">Security: Foreign Key Compound Enforcement</span>
+                </div>
+
+                <div class="arch-grid">
+                    <div class="arch-box">
+                        <h4>🔒 Compound Foreign Key Guarantees</h4>
+                        <p>Instead of relying merely on application-level <code>where: { userId }</code> clauses, the database schema itself declares <code>Account PRIMARY KEY (id, userId)</code> and child tables reference <code>FOREIGN KEY (accountId, userId)</code>. A query cannot accidentally join records belonging to another tenant.</p>
+                    </div>
+                    <div class="arch-box">
+                        <h4>🤝 Fine-Grained Tenant Delegation</h4>
+                        <p>Through the <code>Access</code> table, a user can grant scoped read/admin access to another tenant (<code>granteeUserId</code>) with expirations and specific scope arrays without sharing passwords or combining database rows.</p>
+                    </div>
+                    <div class="arch-box">
+                        <h4>🔑 Key Multi-Tenant Indices</h4>
+                        <ul>
+                            <li><code>Account PRIMARY KEY (id, userId)</code></li>
+                            <li><code>AccountBalance UNIQUE (accountId, userId, date)</code></li>
+                            <li><code>Order INDEX (accountId, userId)</code></li>
+                            <li><code>Access INDEX (userId, granteeUserId)</code></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ERD Diagram -->
+            <div class="erd-box" id="erd-box-gf">
+                <div class="section-bar">
+                    <h3>📊 Entity Relationship Diagram (ERD)</h3>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <span class="tag tenant">Multi-tenant boundary: [id, userId]</span>
+                        <div class="diagram-controls">
+                            <button class="ctrl-btn" onclick="zoomDiagram('gf', 0.2)" title="Zoom In">🔍 +</button>
+                            <span class="zoom-level-badge" id="zoom-label-gf">100%</span>
+                            <button class="ctrl-btn" onclick="zoomDiagram('gf', -0.2)" title="Zoom Out">🔍 −</button>
+                            <button class="ctrl-btn" onclick="resetDiagram('gf')" title="Reset View">↺ Reset</button>
+                            <button class="ctrl-btn" onclick="toggleFullscreen('erd-box-gf')" title="Fullscreen">⛶ Fullscreen</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mermaid-container" id="container-gf">
+                    <div style="color:var(--text-muted); font-size:0.9rem;">Rendering diagram...</div>
+                </div>
+            </div>
+
+            <!-- Schema Viewer -->
+            <div class="schema-box">
+                <div class="schema-toolbar">
+                    <div class="schema-toggle-group">
+                        <button class="toggle-btn active" id="btn-gf-sql" onclick="switchSchemaView('gf', 'sql')">PostgreSQL DDL (Clean)</button>
+                        <button class="toggle-btn" id="btn-gf-raw" onclick="switchSchemaView('gf', 'raw')">Prisma Schema (Original)</button>
+                    </div>
+                    <button class="copy-btn" id="copy-gf" onclick="copySchema('gf')">📋 Copy Schema</button>
+                </div>
+
+                <div id="view-gf-sql">
+                    <pre class="code-block" id="code-gf-sql">-- Ghostfolio: Compound Primary &amp; Foreign Key Multi-Tenancy DDL
+-- Tenancy model: Hard Database Compound Constraints (`[id, user_id]`)
+
+CREATE EXTENSION IF NOT EXISTS &quot;uuid-ossp&quot;;
+
+-- Tenant Root: User
+CREATE TABLE &quot;User&quot; (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE,
+    role VARCHAR(50) DEFAULT &#x27;USER&#x27; NOT NULL,
+    currency VARCHAR(3) DEFAULT &#x27;USD&#x27; NOT NULL,
+    settings JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Financial Accounts with Composite Primary Key (id, userId)
+-- Guarantees zero cross-tenant account leakage at database schema level
+CREATE TABLE &quot;Account&quot; (
+    id UUID DEFAULT uuid_generate_v4(),
+    &quot;userId&quot; UUID NOT NULL REFERENCES &quot;User&quot;(id) ON DELETE CASCADE,
+    name VARCHAR(255),
+    currency VARCHAR(3) DEFAULT &#x27;USD&#x27;,
+    comment TEXT,
+    &quot;platformId&quot; UUID,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    PRIMARY KEY (id, &quot;userId&quot;)
+);
+CREATE INDEX idx_account_user ON &quot;Account&quot;(&quot;userId&quot;);
+CREATE INDEX idx_account_currency ON &quot;Account&quot;(currency);
+
+-- Account Daily Balance Snapshots with Composite FK
+CREATE TABLE &quot;AccountBalance&quot; (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    &quot;accountId&quot; UUID NOT NULL,
+    &quot;userId&quot; UUID NOT NULL,
+    date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    value DOUBLE PRECISION NOT NULL,
+    comment TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT fk_account_balance FOREIGN KEY (&quot;accountId&quot;, &quot;userId&quot;) 
+        REFERENCES &quot;Account&quot;(id, &quot;userId&quot;) ON DELETE CASCADE,
+    CONSTRAINT uq_account_user_date UNIQUE (&quot;accountId&quot;, &quot;userId&quot;, date)
+);
+CREATE INDEX idx_account_balance_date ON &quot;AccountBalance&quot;(&quot;accountId&quot;, &quot;userId&quot;, date DESC);
+
+-- Transactions / Orders / Expenses with Compound Account References
+CREATE TABLE &quot;Order&quot; (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    &quot;userId&quot; UUID NOT NULL REFERENCES &quot;User&quot;(id) ON DELETE CASCADE,
+    &quot;accountId&quot; UUID NOT NULL,
+    type VARCHAR(50) NOT NULL, -- BUY, SELL, ITEM, DIVIDEND, FEE, LIABILITY
+    date TIMESTAMPTZ NOT NULL,
+    quantity DOUBLE PRECISION NOT NULL DEFAULT 1,
+    &quot;unitPrice&quot; DOUBLE PRECISION NOT NULL,
+    fee DOUBLE PRECISION DEFAULT 0 NOT NULL,
+    currency VARCHAR(3) NOT NULL,
+    comment TEXT,
+    &quot;symbolProfileId&quot; VARCHAR(255),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT fk_order_account FOREIGN KEY (&quot;accountId&quot;, &quot;userId&quot;) 
+        REFERENCES &quot;Account&quot;(id, &quot;userId&quot;) ON DELETE CASCADE
+);
+CREATE INDEX idx_order_user ON &quot;Order&quot;(&quot;userId&quot;);
+CREATE INDEX idx_order_account ON &quot;Order&quot;(&quot;accountId&quot;, &quot;userId&quot;);
+CREATE INDEX idx_order_date ON &quot;Order&quot;(date DESC);
+
+-- Tenant Custom Tags
+CREATE TABLE &quot;Tag&quot; (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    &quot;userId&quot; UUID NOT NULL REFERENCES &quot;User&quot;(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+CREATE INDEX idx_tag_user ON &quot;Tag&quot;(&quot;userId&quot;);
+
+-- Account Tagging
+CREATE TABLE &quot;TagsOnAccounts&quot; (
+    &quot;accountId&quot; UUID NOT NULL,
+    &quot;tagId&quot; UUID NOT NULL REFERENCES &quot;Tag&quot;(id) ON DELETE CASCADE,
+    PRIMARY KEY (&quot;accountId&quot;, &quot;tagId&quot;)
+);
+
+-- Multi-Tenant Delegation &amp; Portfolio Sharing
+CREATE TABLE &quot;Access&quot; (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    &quot;userId&quot; UUID NOT NULL REFERENCES &quot;User&quot;(id) ON DELETE CASCADE,
+    &quot;granteeUserId&quot; UUID REFERENCES &quot;User&quot;(id) ON DELETE CASCADE,
+    alias VARCHAR(255),
+    type VARCHAR(50) DEFAULT &#x27;PRIVATE&#x27; NOT NULL,
+    scopes TEXT[] DEFAULT ARRAY[]::TEXT[],
+    settings JSONB DEFAULT &#x27;{}&#x27;::jsonb,
+    &quot;expiresAt&quot; TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+CREATE INDEX idx_access_user ON &quot;Access&quot;(&quot;userId&quot;);
+CREATE INDEX idx_access_grantee ON &quot;Access&quot;(&quot;granteeUserId&quot;);</pre>
+                </div>
+                <div id="view-gf-raw" style="display:none;">
+                    <pre class="code-block" id="code-gf-raw">generator client {
+  binaryTargets   = [&quot;debian-openssl-3.0.x&quot;, &quot;linux-arm64-openssl-3.0.x&quot;, &quot;native&quot;]
+  previewFeatures = []
+  provider        = &quot;prisma-client-js&quot;
+}
+
+generator workspaceClient {
+  output   = &quot;./generated&quot;
+  provider = &quot;prisma-client&quot;
+}
+
+datasource db {
+  provider = &quot;postgresql&quot;
+}
+
+model Access {
+  alias         String?
+  createdAt     DateTime   @default(now())
+  expiresAt     DateTime
+  granteeUser   User?      @relation(&quot;accessGet&quot;, fields: [granteeUserId], onDelete: Cascade, references: [id])
+  granteeUserId String?
+  id            String     @id @default(uuid())
+  lastUsedAt    DateTime?
+  scopes        String[]   @default([])
+  settings      Json       @default(&quot;{}&quot;)
+  type          AccessType @default(PRIVATE)
+  updatedAt     DateTime   @updatedAt
+  userId        String
+  user          User       @relation(&quot;accessGive&quot;, fields: [userId], onDelete: Cascade, references: [id])
+
+  @@index([alias])
+  @@index([granteeUserId])
+  @@index([userId])
+}
+
+model Account {
+  activities Order[]
+  balances   AccountBalance[]
+  comment    String?
+  createdAt  DateTime         @default(now())
+  currency   String?
+  id         String           @default(uuid())
+  name       String?
+  platform   Platform?        @relation(fields: [platformId], references: [id])
+  platformId String?
+  tags       TagsOnAccounts[]
+  updatedAt  DateTime         @updatedAt
+  user       User             @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId     String
+
+  @@id([id, userId])
+  @@index([currency])
+  @@index([id])
+  @@index([name])
+  @@index([userId])
+}
+
+model AccountBalance {
+  account   Account  @relation(fields: [accountId, userId], onDelete: Cascade, references: [id, userId])
+  accountId String
+  comment   String?
+  createdAt DateTime @default(now())
+  date      DateTime @default(now())
+  id        String   @id @default(uuid())
+  updatedAt DateTime @updatedAt
+  userId    String
+  value     Float
+
+  @@unique([accountId, userId, date])
+  @@index([accountId])
+  @@index([date])
+}
+
+model Analytics {
+  activityCount                       Int            @default(0)
+  country                             String?
+  dataProviderGhostfolioDailyRequests Int            @default(0)
+  lastRequestAt                       DateTime       @default(now())
+  lastRequestClient                   RequestClient?
+  updatedAt                           DateTime       @updatedAt
+  user                                User           @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId                              String         @id
+
+  @@index([lastRequestAt])
+  @@index([updatedAt])
+}
+
+model ApiKey {
+  createdAt DateTime @default(now())
+  hashedKey String   @unique
+  id        String   @id @default(uuid())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId    String
+
+  @@index([userId])
+}
+
+model AssetProfileOverrides {
+  assetClass      AssetClass?
+  assetSubClass   AssetSubClass?
+  countries       Json?          @default(&quot;[]&quot;)
+  holdings        Json?          @default(&quot;[]&quot;)
+  name            String?
+  sectors         Json?          @default(&quot;[]&quot;)
+  symbolProfile   SymbolProfile  @relation(fields: [symbolProfileId], onDelete: Cascade, references: [id])
+  symbolProfileId String         @id
+  updatedAt       DateTime       @updatedAt
+  url             String?
+
+  @@map(&quot;SymbolProfileOverrides&quot;)
+}
+
+model AssetProfileResolution {
+  createdAt        DateTime   @default(now())
+  currency         String
+  dataSourceOrigin DataSource
+  dataSourceTarget DataSource
+  id               String     @id @default(uuid())
+  requestCount     Int        @default(1)
+  symbolOrigin     String
+  symbolTarget     String
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([dataSourceOrigin, symbolOrigin])
+}
+
+/// A stock split of an asset profile. The numerator is the number of shares
+/// held after the split, the denominator the number of shares held before, for
+/// example 4 and 1 for a 4:1 split or 1 and 10 for a 1:10 reverse split.
+///
+/// The ratio is stored as two integers instead of the resulting factor, so that
+/// it stays exact, for example 1/3 for a 1:3 reverse split.
+///
+/// Activities before the date are adjusted by the ratio: the quantity is
+/// multiplied by it and the unit price divided by it, so that the total value
+/// of an activity stays the same.
+///
+/// Market data is already split-adjusted by the data providers and must not be
+/// adjusted again.
+model AssetProfileSplit {
+  createdAt       DateTime      @default(now())
+  date            DateTime
+  denominator     Int
+  id              String        @id @default(uuid())
+  numerator       Int
+  symbolProfile   SymbolProfile @relation(fields: [symbolProfileId], onDelete: Cascade, references: [id])
+  symbolProfileId String
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([symbolProfileId, date])
+  @@index([date])
+}
+
+model AuthDevice {
+  createdAt           DateTime @default(now())
+  credentialId        Bytes
+  credentialPublicKey Bytes
+  counter             Int
+  id                  String   @id @default(uuid())
+  updatedAt           DateTime @updatedAt
+  user                User     @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId              String
+
+  @@index([userId])
+}
+
+model MarketData {
+  createdAt        DateTime        @default(now())
+  dataSource       DataSource
+  date             DateTime
+  id               String          @id @default(uuid())
+  isCarriedForward Boolean         @default(false)
+  marketPrice      Float
+  state            MarketDataState @default(CLOSE)
+  symbol           String
+
+  @@unique([dataSource, symbol, date])
+  @@index([date])
+  @@index([state])
+  @@index([symbol])
+}
+
+model Order {
+  account         Account?      @relation(fields: [accountId, accountUserId], references: [id, userId])
+  accountId       String?
+  accountUserId   String?
+  comment         String?
+  createdAt       DateTime      @default(now())
+  currency        String?
+  date            DateTime
+  fee             Float
+  id              String        @id @default(uuid())
+  quantity        Float
+  symbolProfileId String
+  tags            Tag[]
+  type            Type
+  unitPrice       Float
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId          String
+  SymbolProfile   SymbolProfile @relation(fields: [symbolProfileId], references: [id])
+
+  @@index([accountId])
+  @@index([date])
+  @@index([symbolProfileId, date])
+  @@index([userId, date])
+  @@index([userId, type, date])
+}
+
+model Platform {
+  accounts Account[]
+  id       String    @id @default(uuid())
+  name     String?
+  url      String    @unique
+
+  @@index([name])
+}
+
+model Property {
+  key   String @id
+  value String
+}
+
+model Settings {
+  settings  Json?
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId    String   @id
+}
+
+model SymbolProfile {
+  activities             Order[]
+  assetClass             AssetClass?
+  assetProfileOverrides  AssetProfileOverrides?
+  assetProfileSplits     AssetProfileSplit[]
+  assetSubClass          AssetSubClass?
+  comment                String?
+  countries              Json?
+  createdAt              DateTime               @default(now())
+  currency               String
+  cusip                  String?
+  dataGatheringFrequency DataGatheringFrequency @default(DAILY)
+  dataSource             DataSource
+  figi                   String?
+  figiComposite          String?
+  figiShareClass         String?
+  holdings               Json?                  @default(&quot;[]&quot;)
+  id                     String                 @id @default(uuid())
+  isActive               Boolean                @default(true)
+  isin                   String?
+  name                   String?
+  scraperConfiguration   Json?
+  sectors                Json?
+  symbol                 String
+  symbolMapping          Json?
+  updatedAt              DateTime               @updatedAt
+  url                    String?
+  user                   User?                  @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId                 String?
+  watchedBy              User[]                 @relation(&quot;UserWatchlist&quot;)
+
+  @@unique([dataSource, symbol])
+  @@index([assetClass])
+  @@index([currency])
+  @@index([cusip])
+  @@index([dataGatheringFrequency])
+  @@index([dataSource])
+  @@index([isActive])
+  @@index([isin])
+  @@index([name])
+  @@index([symbol])
+}
+
+model Subscription {
+  createdAt               DateTime @default(now())
+  expiresAt               DateTime
+  id                      String   @id @default(uuid())
+  price                   Float?
+  stripeCheckoutSessionId String?  @unique
+  updatedAt               DateTime @updatedAt
+  user                    User     @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId                  String
+
+  @@index([userId])
+}
+
+model Tag {
+  accounts   TagsOnAccounts[]
+  activities Order[]
+  id         String           @id @default(uuid())
+  name       String
+  user       User?            @relation(fields: [userId], onDelete: Cascade, references: [id])
+  userId     String?
+
+  @@unique([name, userId])
+  @@index([name])
+}
+
+model TagsOnAccounts {
+  account   Account  @relation(fields: [accountId, userId], onDelete: Cascade, references: [id, userId])
+  accountId String
+  createdAt DateTime @default(now())
+  tag       Tag      @relation(fields: [tagId], onDelete: Cascade, references: [id])
+  tagId     String
+  updatedAt DateTime @updatedAt
+  userId    String
+
+  @@id([accountId, tagId, userId])
+  @@index([tagId])
+}
+
+model User {
+  accessesGet   Access[]        @relation(&quot;accessGet&quot;)
+  accessesGive  Access[]        @relation(&quot;accessGive&quot;)
+  accessToken   String?
+  accounts      Account[]
+  activities    Order[]
+  analytics     Analytics?
+  apiKeys       ApiKey[]
+  authChallenge String?
+  authDevices   AuthDevice[]
+  createdAt     DateTime        @default(now())
+  id            String          @id @default(uuid())
+  provider      Provider        @default(ANONYMOUS)
+  role          Role            @default(USER)
+  settings      Settings?
+  subscriptions Subscription[]
+  tags          Tag[]
+  thirdPartyId  String?
+  updatedAt     DateTime        @updatedAt
+  watchlist     SymbolProfile[] @relation(&quot;UserWatchlist&quot;)
+  SymbolProfile SymbolProfile[]
+
+  @@index([accessToken])
+  @@index([createdAt])
+  @@index([provider])
+  @@index([role])
+  @@index([thirdPartyId])
+}
+
+enum AccessType {
+  MCP
+  PRIVATE
+  PUBLIC
+}
+
+enum AssetClass {
+  ALTERNATIVE_INVESTMENT
+  COMMODITY
+  EQUITY
+  FIXED_INCOME
+  LIQUIDITY
+  REAL_ESTATE
+}
+
+enum AssetSubClass {
+  BOND
+  CASH
+  COLLECTIBLE
+  COMMODITY
+  CRYPTOCURRENCY
+  ETF
+  LOAN
+  MUTUALFUND
+  PRECIOUS_METAL
+  PRIVATE_EQUITY
+  STOCK
+}
+
+enum DataGatheringFrequency {
+  DAILY
+  HOURLY
+}
+
+enum DataSource {
+  ALPHA_VANTAGE
+  COINGECKO
+  EOD_HISTORICAL_DATA
+  FINANCIAL_MODELING_PREP
+  GHOSTFOLIO
+  GOOGLE_SHEETS
+  MANUAL
+  RAPID_API
+  YAHOO
+}
+
+enum MarketDataState {
+  CLOSE
+  INTRADAY
+}
+
+enum Provider {
+  ANONYMOUS
+  GOOGLE
+  INTERNET_IDENTITY
+  OIDC
+}
+
+enum RequestClient {
+  API
+  MCP
+  SELF_HOSTING
+  WEB
+}
+
+enum Role {
+  ADMIN
+  DEMO
+  INACTIVE
+  USER
+}
+
+enum Type {
+  BUY
+  DIVIDEND
+  FEE
+  INTEREST
+  LIABILITY
+  SELL
+}
+
+enum ViewMode {
+  DEFAULT
+  ZEN
+}</pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: ARCHITECTURE COMPARISON MATRIX -->
+        <section id="tab-comparison" class="tab-pane">
+            <div class="info-card">
+                <div class="info-header">
+                    <div>
+                        <div class="repo-title">Architectural Trade-Off &amp; Scalability Matrix</div>
+                        <p style="color: var(--text-secondary); margin-top: 6px;">
+                            Comparison of multi-tenant strategies across open-source expense systems to determine best architectural fit.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="comp-table">
+                        <thead>
+                            <tr>
+                                <th>Dimension</th>
+                                <th>Maybe Finance</th>
+                                <th>Invoice Ninja</th>
+                                <th>Ghostfolio</th>
+                                <th>Supabase / Postgres RLS (Best Practice)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Tenancy Boundary</strong></td>
+                                <td><code>family_id</code> (Group/Household)</td>
+                                <td><code>company_id</code> (Enterprise Org)</td>
+                                <td><code>userId</code> with composite PKs</td>
+                                <td><code>tenant_id</code> via <code>auth.jwt()</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Isolation Enforcement</strong></td>
+                                <td>Application/ORM scope query filters</td>
+                                <td>Application Query Scopes + Company Middleware</td>
+                                <td>Database Foreign Key constraints (compound)</td>
+                                <td>Kernel-level Postgres Row Level Security (RLS)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Multi-User Membership</strong></td>
+                                <td><code>users.family_id</code> (1 user = 1 family)</td>
+                                <td><code>company_user</code> M:N table + JSON permissions</td>
+                                <td><code>Access</code> delegation table for sharing</td>
+                                <td><code>tenant_members</code> table with role enum</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Expense / Transaction Model</strong></td>
+                                <td>Polymorphic <code>entries</code> (ledger line) + <code>transactions</code></td>
+                                <td>Direct <code>expenses</code> table with vendor &amp; client links</td>
+                                <td>General <code>Order</code> activity table (Buy/Sell/Item/Fee)</td>
+                                <td>Double-entry ledger (<code>transactions</code> + <code>postings</code>)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Reporting Performance</strong></td>
+                                <td>Precalculated daily <code>balances</code> snapshot table</td>
+                                <td>Composite index queries on <code>(company_id, expense_date)</code></td>
+                                <td><code>AccountBalance</code> unique daily snapshots</td>
+                                <td>Materialized views / daily snapshot tables</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Horizontal Scalability (Sharding)</strong></td>
+                                <td>High (Shard database by <code>family_id</code>)</td>
+                                <td>Very High (Shard database by <code>company_id</code>)</td>
+                                <td>Medium (Composite keys assist Citus / PG partitioning)</td>
+                                <td>Very High (Partition table by LIST / HASH on <code>tenant_id</code>)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Accidental Leak Vulnerability</strong></td>
+                                <td>Medium (Depends on developer writing <code>where(family_id)</code>)</td>
+                                <td>Low-Medium (Uses global Laravel scopes)</td>
+                                <td>Zero for joins (DB rejects mismatched <code>accountId, userId</code>)</td>
+                                <td>Zero (Enforced at SQL engine level on every connection)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="arch-grid" style="margin-top: 24px;">
+                    <div class="arch-box">
+                        <h4>💡 Recommendation for CashBuffer</h4>
+                        <p>Combine <strong>Invoice Ninja's</strong> M:N <code>tenant_users</code> membership model with <strong>Ghostfolio's</strong> compound constraints and <strong>PostgreSQL RLS policies</strong>:
+                        <br><br>
+                        <code>CREATE POLICY tenant_isolation ON expenses FOR ALL USING (tenant_id = (SELECT current_setting('app.current_tenant_id')::uuid));</code>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Toast Feedback -->
+        <div id="toast">✓ Copied to clipboard!</div>
+    </div>
+
+    <script>
+        // Pan & Zoom state management
+        const diagramStates = {
+            maybe: { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 },
+            ninja: { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 },
+            gf:    { scale: 1, x: 0, y: 0, isDragging: false, startX: 0, startY: 0 }
+        };
+
+        function getSvg(id) {
+            const container = document.getElementById(`container-${id}`);
+            return container ? container.querySelector('svg') : null;
+        }
+
+        function updateDiagramTransform(id) {
+            const svg = getSvg(id);
+            if (!svg) return;
+            const st = diagramStates[id];
+            svg.style.transform = `translate(${st.x}px, ${st.y}px) scale(${st.scale})`;
+            const label = document.getElementById(`zoom-label-${id}`);
+            if (label) label.textContent = `${Math.round(st.scale * 100)}%`;
+        }
+
+        function zoomDiagram(id, delta) {
+            const st = diagramStates[id];
+            st.scale = Math.min(Math.max(0.2, st.scale + delta), 4.0);
+            updateDiagramTransform(id);
+        }
+
+        function resetDiagram(id) {
+            const st = diagramStates[id];
+            st.scale = 1;
+            st.x = 0;
+            st.y = 0;
+            updateDiagramTransform(id);
+        }
+
+        function toggleFullscreen(boxId) {
+            const box = document.getElementById(boxId);
+            if (!box) return;
+
+            if (!document.fullscreenElement && !box.classList.contains('is-fullscreen')) {
+                if (box.requestFullscreen) {
+                    box.requestFullscreen().catch(() => box.classList.add('is-fullscreen'));
+                } else {
+                    box.classList.add('is-fullscreen');
+                }
+            } else {
+                if (document.exitFullscreen && document.fullscreenElement) {
+                    document.exitFullscreen().catch(() => {});
+                }
+                box.classList.remove('is-fullscreen');
+            }
+        }
+
+        function initDiagramInteractions(id) {
+            const container = document.getElementById(`container-${id}`);
+            if (!container) return;
+            const st = diagramStates[id];
+
+            // Wheel zoom with cursor centering
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.15 : -0.15;
+                zoomDiagram(id, delta);
+            }, { passive: false });
+
+            // Drag to pan
+            container.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.diagram-controls') || e.target.closest('button')) return;
+                st.isDragging = true;
+                st.startX = e.clientX - st.x;
+                st.startY = e.clientY - st.y;
+                container.classList.add('dragging');
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!st.isDragging) return;
+                st.x = e.clientX - st.startX;
+                st.y = e.clientY - st.startY;
+                updateDiagramTransform(id);
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (st.isDragging) {
+                    st.isDragging = false;
+                    container.classList.remove('dragging');
+                }
+            });
+        }
+
+        // Initialize Mermaid with startOnLoad: false
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',
+            er: {
+                useMaxWidth: false,
+                diagramPadding: 25,
+                layoutDirection: 'TB'
+            }
+        });
+
+        const erdDefinitions = {
+            maybe: `erDiagram
+    FAMILIES ||--o{ USERS : "members (tenant isolation)"
+    FAMILIES ||--o{ ACCOUNTS : "family accounts"
+    FAMILIES ||--o{ CATEGORIES : "custom categories"
+    FAMILIES ||--o{ BUDGETS : "family budgets"
+    FAMILIES ||--o{ MERCHANTS : "custom payees"
+    FAMILIES ||--o{ TAGS : "family tags"
+
+    ACCOUNTS ||--o{ ENTRIES : "account transactions"
+    ACCOUNTS ||--o{ BALANCES : "daily snapshots"
+
+    BUDGETS ||--o{ BUDGET_CATEGORIES : "budget targets"
+    CATEGORIES ||--o{ BUDGET_CATEGORIES : "budgeted under"
+
+    CATEGORIES ||--o{ TRANSACTIONS : "classifies"
+    MERCHANTS ||--o{ TRANSACTIONS : "payee/merchant"
+
+    ENTRIES ||--|| TRANSACTIONS : "entryable (polymorphic)"
+
+    FAMILIES {
+        uuid id PK
+        string name
+        string currency
+        string locale
+    }
+
+    USERS {
+        uuid id PK
+        uuid family_id FK
+        string email
+        string role
+    }
+
+    ACCOUNTS {
+        uuid id PK
+        uuid family_id FK
+        string name
+        numeric balance
+        string currency
+        string status
+    }
+
+    ENTRIES {
+        uuid id PK
+        uuid account_id FK
+        string entryable_type
+        uuid entryable_id
+        numeric amount
+        date date
+        string name
+    }
+
+    TRANSACTIONS {
+        uuid id PK
+        uuid category_id FK
+        uuid merchant_id FK
+        string kind
+    }
+
+    BUDGETS {
+        uuid id PK
+        uuid family_id FK
+        date start_date
+        date end_date
+        numeric budgeted_spending
+    }
+
+    BALANCES {
+        uuid id PK
+        uuid account_id FK
+        date date
+        numeric balance
+    }`,
+
+            ninja: `erDiagram
+    ACCOUNTS ||--o{ COMPANIES : "hosts companies"
+    ACCOUNTS ||--o{ USERS : "contains user identities"
+
+    COMPANIES ||--o{ COMPANY_USER : "tenant membership"
+    USERS ||--o{ COMPANY_USER : "access grants"
+
+    COMPANIES ||--o{ EXPENSES : "company expenses"
+    COMPANIES ||--o{ EXPENSE_CATEGORIES : "company categories"
+    COMPANIES ||--o{ VENDORS : "company vendors"
+    COMPANIES ||--o{ CLIENTS : "company clients"
+    COMPANIES ||--o{ INVOICES : "company invoices"
+    COMPANIES ||--o{ PAYMENTS : "company payments"
+
+    EXPENSE_CATEGORIES ||--o{ EXPENSES : "classifies"
+    VENDORS ||--o{ EXPENSES : "billed by"
+    CLIENTS ||--o{ EXPENSES : "billable to"
+    CLIENTS ||--o{ INVOICES : "invoiced to"
+    INVOICES ||--o{ PAYMENTS : "settles"
+
+    COMPANIES {
+        bigint id PK
+        bigint account_id FK
+        string company_key
+        jsonb settings
+    }
+
+    COMPANY_USER {
+        bigint id PK
+        bigint company_id FK
+        bigint user_id FK
+        jsonb permissions
+        boolean is_admin
+    }
+
+    EXPENSES {
+        bigint id PK
+        bigint company_id FK
+        bigint user_id FK
+        bigint vendor_id FK
+        bigint client_id FK
+        bigint invoice_category_id FK
+        numeric amount
+        numeric foreign_amount
+        date expense_date
+        boolean is_deleted
+    }
+
+    EXPENSE_CATEGORIES {
+        bigint id PK
+        bigint company_id FK
+        string name
+        boolean is_deleted
+    }
+
+    VENDORS {
+        bigint id PK
+        bigint company_id FK
+        string name
+        boolean is_deleted
+    }
+
+    CLIENTS {
+        bigint id PK
+        bigint company_id FK
+        string name
+        numeric balance
+    }`,
+
+            gf: `erDiagram
+    USER ||--o{ ACCOUNT : "owns (composite PK [id, userId])"
+    USER ||--o{ ORDER : "user transactions"
+    USER ||--o{ TAG : "custom tags"
+    USER ||--o{ ACCESS : "grants access"
+    USER ||--o{ ACCESS : "receives access (grantee)"
+
+    ACCOUNT ||--o{ ACCOUNT_BALANCE : "composite FK [accountId, userId]"
+    ACCOUNT ||--o{ ORDER : "composite FK [accountId, userId]"
+    ACCOUNT ||--o{ TAGS_ON_ACCOUNTS : "tagged"
+    TAG ||--o{ TAGS_ON_ACCOUNTS : "applied"
+
+    USER {
+        uuid id PK
+        string email
+        string role
+        string currency
+    }
+
+    ACCOUNT {
+        uuid id PK
+        uuid userId PK
+        string name
+        string currency
+    }
+
+    ACCOUNT_BALANCE {
+        uuid id PK
+        uuid accountId FK
+        uuid userId FK
+        datetime date
+        float value
+    }
+
+    ORDER {
+        uuid id PK
+        uuid userId FK
+        uuid accountId FK
+        string type
+        datetime date
+        float quantity
+        float unitPrice
+        float fee
+        string currency
+    }
+
+    TAG {
+        uuid id PK
+        uuid userId FK
+        string name
+    }
+
+    ACCESS {
+        uuid id PK
+        uuid userId FK
+        uuid granteeUserId FK
+        string type
+        datetime expiresAt
+    }`
+        };
+
+        const renderedDiagrams = new Set();
+
+        async function ensureDiagramRendered(id) {
+            if (renderedDiagrams.has(id)) return;
+            const container = document.getElementById(`container-${id}`);
+            if (!container || !erdDefinitions[id]) return;
+
+            try {
+                const uniqueId = `mermaid-svg-${id}-${Date.now()}`;
+                const { svg } = await mermaid.render(uniqueId, erdDefinitions[id]);
+                container.innerHTML = svg;
+                renderedDiagrams.add(id);
+                initDiagramInteractions(id);
+                updateDiagramTransform(id);
+            } catch (err) {
+                console.error("Mermaid render error for " + id, err);
+                container.innerHTML = `<div style="color:#ef4444; padding:20px;">Failed to render ERD diagram: ${err.message}</div>`;
+            }
+        }
+
+        // Tab Switching with on-demand diagram rendering
+        function openTab(tabId) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            const targetPane = document.getElementById(tabId);
+            if (targetPane) {
+                targetPane.classList.add('active');
+            }
+            
+            const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(tabId));
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+
+            // Render diagram if needed when switching tab
+            if (tabId === 'tab-maybe') ensureDiagramRendered('maybe');
+            if (tabId === 'tab-ninja') ensureDiagramRendered('ninja');
+            if (tabId === 'tab-ghostfolio') ensureDiagramRendered('gf');
+        }
+
+        // Toggle SQL vs Raw views
+        function switchSchemaView(project, type) {
+            const sqlView = document.getElementById(`view-${project}-sql`);
+            const rawView = document.getElementById(`view-${project}-raw`);
+            const sqlBtn = document.getElementById(`btn-${project}-sql`);
+            const rawBtn = document.getElementById(`btn-${project}-raw`);
+
+            if (type === 'sql') {
+                sqlView.style.display = 'block';
+                rawView.style.display = 'none';
+                sqlBtn.classList.add('active');
+                rawBtn.classList.remove('active');
+            } else {
+                sqlView.style.display = 'none';
+                rawView.style.display = 'block';
+                sqlBtn.classList.remove('active');
+                rawBtn.classList.add('active');
+            }
+        }
+
+        // Copy Schema to Clipboard
+        function copySchema(project) {
+            const sqlView = document.getElementById(`view-${project}-sql`);
+            const isSqlVisible = sqlView && sqlView.style.display !== 'none';
+            
+            const codeEl = isSqlVisible 
+                ? document.getElementById(`code-${project}-sql`) 
+                : document.getElementById(`code-${project}-raw`);
+
+            if (!codeEl) return;
+            const textToCopy = codeEl.innerText;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    triggerCopySuccess(project);
+                }).catch(() => {
+                    fallbackCopy(textToCopy, project);
+                });
+            } else {
+                fallbackCopy(textToCopy, project);
+            }
+        }
+
+        function fallbackCopy(text, project) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            triggerCopySuccess(project);
+        }
+
+        function triggerCopySuccess(project) {
+            showToast("✓ Schema copied to clipboard!");
+            const btn = document.getElementById(`copy-${project}`);
+            if (btn) {
+                const oldText = btn.innerHTML;
+                btn.innerHTML = "✓ Copied!";
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.innerHTML = oldText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2500);
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Restore theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.body.setAttribute('data-theme', savedTheme);
+        }
+
+        // Initial render for active tab & pre-render others
+        ensureDiagramRendered('maybe');
+        setTimeout(() => ensureDiagramRendered('ninja'), 50);
+        setTimeout(() => ensureDiagramRendered('gf'), 100);
+
+        // ESC key to exit fullscreen fallback
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.is-fullscreen').forEach(el => el.classList.remove('is-fullscreen'));
+            }
+        });
+    </script>
+</body>
+</html>

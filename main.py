@@ -9,41 +9,49 @@ from app.api.auth import router as auth_router
 from app.api.categories import router as categories_router
 from app.api.export import router as export_router
 from app.api.ingestion import router as ingestion_router
+from app.api.ingress import router as ingress_router
 from app.api.llm import router as llm_router
 from app.api.notifications import router as notifications_router
 from app.api.rules import router as rules_router
 from app.api.telegram import router as telegram_router
 from app.api.transactions import router as transactions_router
-from app.db.database import Base, engine
+from app.infrastructure.persistence.db_pool import close_db_pool, get_db_pool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cashbuffer")
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure database schema is created on startup
+    # Initialize native psycopg 3 connection pool
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Database tables verified.")
+        pool = await get_db_pool()
+        if pool is not None:
+            logger.info("Native psycopg 3 database connection pool initialized.")
     except Exception as e:
-        logger.error(f"Error initializing DB schema: {e}")
+        logger.warning(f"Database pool initialization skipped or failed: {e}")
 
-    # Start OAuth daemon
+    # Start OAuth refresh daemon in background if available
     import asyncio
 
-    from app.services.oauth_daemon import oauth_refresh_daemon_loop
+    daemon_task = None
+    try:
+        from app.services.oauth_daemon import oauth_refresh_daemon_loop
 
-    daemon_task = asyncio.create_task(oauth_refresh_daemon_loop())
+        daemon_task = asyncio.create_task(oauth_refresh_daemon_loop())
+    except Exception as e:
+        logger.debug(f"OAuth daemon not started: {e}")
+
     yield
 
-    daemon_task.cancel()
-    try:
-        await daemon_task
-    except asyncio.CancelledError:
-        pass
+    if daemon_task:
+        daemon_task.cancel()
+        try:
+            await daemon_task
+        except asyncio.CancelledError:
+            pass
 
+    await close_db_pool()
+    logger.info("Database connection pool closed.")
 
 app = FastAPI(
     title="CashBuffer API",
@@ -64,23 +72,21 @@ app.add_middleware(
 # Include v1 routers
 api_v1_routers = [
     auth_router,
+    ingress_router,
     transactions_router,
     categories_router,
     rules_router,
     ingestion_router,
     llm_router,
     assistant_router,
-    notifications_router,
     telegram_router,
+    notifications_router,
     export_router,
 ]
 
-for r in api_v1_routers:
-    app.include_router(r, prefix="/api/v1")
-    # Also include at root prefix for convenience and backwards compatibility
-    app.include_router(r)
+for router in api_v1_routers:
+    app.include_router(router, prefix="/api/v1")
 
-
-@app.get("/health", tags=["System"])
+@app.get("/health", tags=["Health"])
 async def health_check():
-    return {"status": "ok", "service": "CashBuffer", "version": "1.0.0"}
+    return {"status": "ok", "service": "cashbuffer-api"}

@@ -12,7 +12,8 @@ async def test_api_e2e_full_lifecycle(client: AsyncClient, auth_headers_alice, u
     # 2. Check Auth Profile
     me = await client.get("/api/v1/auth/me", headers=auth_headers_alice)
     assert me.status_code == 200
-    assert me.json()["id"] == unique_user_alice
+    assert me.json()["idp_user_id"] == unique_user_alice
+    assert "id" in me.json()
 
     # 3. List categories (auto-seeded)
     cats_res = await client.get("/api/v1/categories", headers=auth_headers_alice)

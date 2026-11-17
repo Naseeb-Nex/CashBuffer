@@ -2,10 +2,9 @@ import uuid
 
 import pytest
 
-from app.db.models import TransactionStatus
+from app.domain.models import TransactionStatus
 from app.services.assistant import execute_assistant_chat, get_assistant_context
 from app.services.transactions import create_transaction
-
 
 @pytest.mark.asyncio
 async def test_assistant_context_and_deterministic_chat(db_session):
@@ -41,7 +40,6 @@ async def test_assistant_context_and_deterministic_chat(db_session):
     assert "7500.00" in res["reply"]
     assert len(res["widgets"]) > 0
     assert res["widgets"][0]["type"] == "summary_card"
-
 
 @pytest.mark.asyncio
 async def test_assistant_uncategorized_query(db_session):

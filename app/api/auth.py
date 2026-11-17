@@ -4,19 +4,15 @@ import httpx
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.database import get_db
-from app.db.models import User
+from app.infrastructure.persistence.deps import get_repository
+from app.infrastructure.persistence.native_repository import NativeRepository
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 security = HTTPBearer(auto_error=False)
 
-# We cache the JWKS in memory
 _JWKS: dict[str, Any] | None = None
-
 
 async def get_jwks() -> dict[str, Any]:
     global _JWKS
@@ -33,13 +29,12 @@ async def get_jwks() -> dict[str, Any]:
             _JWKS = resp.json()
     return _JWKS
 
-
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> str:
     """
     Dependency that validates the JWT Bearer Token from Kinde or dev fallback.
-    Returns the Subject (user_id).
+    Returns the external Subject / identity string (idp_user_id).
     """
     if credentials is None:
         raise HTTPException(
@@ -56,7 +51,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 1. If Kinde is configured, verify signature against Kinde JWKS
     if settings.KINDE_DOMAIN:
         try:
             jwks = await get_jwks()
@@ -98,7 +92,6 @@ async def get_current_user(
                 detail=f"Token verification failed: {e!s}",
             )
 
-    # 2. In dev/test mode (KINDE_DOMAIN not configured), decode JWT payload or accept identifier
     try:
         payload = jwt.decode(token, options={"verify_signature": False})
         user_id = payload.get("sub") or payload.get("user_id")
@@ -107,44 +100,28 @@ async def get_current_user(
     except Exception:
         pass
 
-    # Direct user token string fallback for testing (e.g. "user_test_123")
     return str(token)
-
 
 @router.get("/me", summary="Get current user profile")
 async def get_me(
     user_id: str = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    repo: NativeRepository = Depends(get_repository),
 ):
-    stmt = select(User).where(User.id == user_id)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-    if not user:
-        user = User(id=user_id, email=f"{user_id}@cashbuffer.local")
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+    user = await repo.get_or_create_user(idp_user_id=user_id)
     return {
         "id": user.id,
+        "idp_user_id": user.idp_user_id,
         "email": user.email,
         "telegram_chat_id": user.telegram_chat_id,
         "created_at": user.created_at,
     }
 
-
 @router.post("/link-telegram", summary="Link telegram chat ID to user")
 async def link_telegram(
     telegram_chat_id: str,
     user_id: str = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    repo: NativeRepository = Depends(get_repository),
 ):
-    stmt = select(User).where(User.id == user_id)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
-    if not user:
-        user = User(id=user_id, email=f"{user_id}@cashbuffer.local", telegram_chat_id=telegram_chat_id)
-        db.add(user)
-    else:
-        user.telegram_chat_id = telegram_chat_id
-    await db.commit()
-    return {"status": "success", "user_id": user_id, "telegram_chat_id": telegram_chat_id}
+    user = await repo.get_or_create_user(idp_user_id=user_id)
+    await repo.set_telegram_chat_id(user_id=user.id, chat_id=telegram_chat_id)
+    return {"status": "linked", "telegram_chat_id": telegram_chat_id}
