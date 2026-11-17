@@ -181,6 +181,26 @@ class CashBufferMCPServer(MCPServer):
                 pool=pool,
             )
 
+        @server.tool(
+            name="detect_recurring_bills",
+            description="Detect recurring bills and subscriptions from past expenses for the authenticated tenant.",
+        )
+        async def detect_recurring_bills(
+            min_occurrences: Annotated[
+                int, Field(default=2, ge=2, le=50, description="Minimum frequency threshold to qualify as recurring")
+            ] = 2,
+            lookback_months: Annotated[
+                int, Field(default=12, ge=1, le=60, description="Lookback window in months (1-60)")
+            ] = 12,
+            ctx: Context = None,  # type: ignore[assignment]
+        ) -> dict[str, Any]:
+            return await execute_recurring_bills(
+                min_occurrences=min_occurrences,
+                lookback_months=lookback_months,
+                ctx=ctx,
+                pool=pool,
+            )
+
 
 def create_server(
     config: MCPConfig | None = None,

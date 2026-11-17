@@ -1,0 +1,48 @@
+version: "3.8"
+
+services:
+  # 1. Core API (FastAPI)
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # 2. Ingress Microservice (Gmail Polling / Worker)
+  ingress:
+    build:
+      context: .
+      dockerfile: apps/ingress/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./credentials.json:/app/credentials.json:ro
+      - ./token.json:/app/token.json
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
+  # 3. FastMCP Server (AI Financial Intelligence)
+  mcp-server:
+    build:
+      context: .
+      dockerfile: apps/mcp/Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 150M
