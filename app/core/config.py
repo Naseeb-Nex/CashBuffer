@@ -2,10 +2,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/cashbuffer"
     TELEGRAM_BOT_TOKEN: str = ""
     # Used for encrypting BYO-LLM API keys at rest. (Requires a 32-byte url-safe base64-encoded bytes string)
-    ENCRYPTION_KEY: str = ""
+    ENCRYPTION_KEY: str = "4CNPcPvUHydNCbtN3FM195z4gcREF1Mxb-fqSCeQPHU="
     # Kinde Configurations
     KINDE_DOMAIN: str = ""
     KINDE_CLIENT_ID: str = ""

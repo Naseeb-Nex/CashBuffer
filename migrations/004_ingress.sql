@@ -1,5 +1,5 @@
 -- Migration: 004_ingress
--- Description: Ingress pipelines, OAuth credentials, raw payload staging, and quarantine queue.
+-- Description: Ingress pipelines, OAuth credentials, raw payload staging, sync checkpoints, and quarantine queue.
 
 CREATE TABLE IF NOT EXISTS oauth_credentials (
     id SERIAL PRIMARY KEY,
@@ -38,6 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_ingress_sources_status ON ingress_sources (status
 CREATE TABLE IF NOT EXISTS ingress_payloads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    household_id UUID REFERENCES households (id) ON DELETE CASCADE,
     source_id UUID REFERENCES ingress_sources (id) ON DELETE SET NULL,
     source_type VARCHAR(50) NOT NULL,
     raw_payload TEXT NOT NULL,
@@ -56,7 +57,10 @@ CREATE INDEX IF NOT EXISTS idx_ingress_payloads_payload_hash ON ingress_payloads
 
 CREATE TABLE IF NOT EXISTS quarantined_emails (
     id SERIAL PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users (id) ON DELETE CASCADE,
+    household_id UUID REFERENCES households (id) ON DELETE CASCADE,
+    raw_email_id VARCHAR(100),
+    email_url TEXT,
     ingress_payload_id UUID REFERENCES ingress_payloads (id) ON DELETE SET NULL,
     email_text TEXT NOT NULL,
     error_reason TEXT NOT NULL,
@@ -66,5 +70,34 @@ CREATE TABLE IF NOT EXISTS quarantined_emails (
 );
 
 CREATE INDEX IF NOT EXISTS idx_quarantined_emails_user_id ON quarantined_emails (user_id);
+CREATE INDEX IF NOT EXISTS idx_quarantined_emails_household_id ON quarantined_emails (household_id) WHERE household_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_quarantined_emails_resolved ON quarantined_emails (resolved);
 CREATE INDEX IF NOT EXISTS idx_quarantined_emails_ingress_payload_id ON quarantined_emails (ingress_payload_id) WHERE ingress_payload_id IS NOT NULL;
+
+-- Ingress Configurations (Database-Driven Web Cron)
+CREATE TABLE IF NOT EXISTS ingress_configs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider VARCHAR(50) NOT NULL DEFAULT 'gmail',
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    interval_minutes INT NOT NULL DEFAULT 60,
+    last_run_at TIMESTAMPTZ,
+    next_run_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) NOT NULL DEFAULT 'idle',
+    last_error TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT uq_household_ingress UNIQUE (household_id, provider)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ingress_due ON ingress_configs(is_enabled, next_run_at)
+    WHERE is_enabled = TRUE;
+
+-- Ingress Sync Checkpoints (Resume without reprocessing)
+CREATE TABLE IF NOT EXISTS ingress_sync_state (
+    household_id UUID PRIMARY KEY REFERENCES households(id) ON DELETE CASCADE,
+    last_history_id VARCHAR(100),
+    last_email_internal_date BIGINT,
+    total_processed INT DEFAULT 0 NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
+);

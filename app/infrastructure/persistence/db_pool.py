@@ -24,16 +24,25 @@ async def get_db_pool() -> AsyncConnectionPool | None:
         return None
 
     if _pool is None or _pool.closed:
+        candidate_pool = None
         try:
-            _pool = AsyncConnectionPool(
+            candidate_pool = AsyncConnectionPool(
                 conninfo=conninfo,
                 min_size=2,
                 max_size=10,
                 open=False,
+                timeout=2.0,
             )
-            await _pool.open()
+            await candidate_pool.open(wait=True, timeout=2.0)
+            _pool = candidate_pool
         except Exception as e:
             logger.warning(f"Failed to open native psycopg 3 connection pool: {e}")
+            if candidate_pool is not None and not candidate_pool.closed:
+                try:
+                    await candidate_pool.close()
+                except Exception:
+                    pass
+            _pool = None
             return None
     return _pool
 
