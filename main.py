@@ -9,12 +9,14 @@ from app.api.auth import router as auth_router
 from app.api.categories import router as categories_router
 from app.api.export import router as export_router
 from app.api.ingestion import router as ingestion_router
+from app.api.ingress import router as ingress_router
 from app.api.llm import router as llm_router
 from app.api.notifications import router as notifications_router
 from app.api.rules import router as rules_router
 from app.api.telegram import router as telegram_router
 from app.api.transactions import router as transactions_router
 from app.db.database import Base, engine
+from app.infrastructure.persistence.db_pool import close_db_pool
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("cashbuffer")
@@ -43,6 +45,7 @@ async def lifespan(app: FastAPI):
         await daemon_task
     except asyncio.CancelledError:
         pass
+    await close_db_pool()
 
 
 app = FastAPI(
@@ -68,6 +71,7 @@ api_v1_routers = [
     categories_router,
     rules_router,
     ingestion_router,
+    ingress_router,
     llm_router,
     assistant_router,
     notifications_router,
