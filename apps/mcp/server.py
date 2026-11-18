@@ -218,6 +218,22 @@ def create_server(
 # Default package-level server instance
 server = create_server()
 
+
+@server.custom_route("/health", methods=["GET"])
+async def mcp_health_check(request: Any) -> Any:
+    """Readiness/health check endpoint for MCP server."""
+    from starlette.responses import JSONResponse
+
+    is_db_open = bool(server.pool and server.pool.is_open)
+    return JSONResponse(
+        {
+            "status": "ok",
+            "service": "cashbuffer-mcp",
+            "database": "connected" if is_db_open else "disconnected",
+        }
+    )
+
+
 __all__ = [
     "CashBufferMCPServer",
     "FastMCP",

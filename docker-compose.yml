@@ -3,15 +3,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: cashbuffer
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-cashbuffer}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d cashbuffer"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cashbuffer}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -27,7 +27,7 @@ services:
       dockerfile: apps/api/Dockerfile
     command: ["python", "scripts/migrate.py"]
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-cashbuffer}
     depends_on:
       db:
         condition: service_healthy
@@ -39,13 +39,27 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
-      ENCRYPTION_KEY: "4CNPcPvUHydNCbtN3FM195z4gcREF1Mxb-fqSCeQPHU="
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-cashbuffer}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      LOCAL_JWT_SECRET: ${LOCAL_JWT_SECRET:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      KINDE_DOMAIN: ${KINDE_DOMAIN:-}
+      KINDE_CLIENT_ID: ${KINDE_CLIENT_ID:-}
+      KINDE_CLIENT_SECRET: ${KINDE_CLIENT_SECRET:-}
     depends_on:
       migration:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     restart: unless-stopped
     deploy:
       resources:
@@ -58,7 +72,11 @@ services:
       context: .
       dockerfile: apps/ingress/Dockerfile
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-cashbuffer}
+      GMAIL_TOKEN_PATH: /app/secrets/token.json
+      GMAIL_CREDENTIALS_PATH: /app/secrets/credentials.json
+    volumes:
+      - ./secrets:/app/secrets:ro
     depends_on:
       migration:
         condition: service_completed_successfully
@@ -74,12 +92,19 @@ services:
       context: .
       dockerfile: apps/mcp/Dockerfile
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/cashbuffer
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-cashbuffer}
+      JWT_SECRET: ${LOCAL_JWT_SECRET:-}
     depends_on:
       migration:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     restart: unless-stopped
     deploy:
       resources:

@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -6,6 +6,10 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str = ""
     # Used for encrypting BYO-LLM API keys at rest. (Requires a 32-byte url-safe base64-encoded bytes string)
     ENCRYPTION_KEY: str = "4CNPcPvUHydNCbtN3FM195z4gcREF1Mxb-fqSCeQPHU="
+    # Local & MCP JWT Secret for self-hosted mode
+    LOCAL_JWT_SECRET: str = ""
+    # Allowed CORS Origins (comma-separated, e.g. "https://cashbuffer.example.com,http://localhost:3000")
+    ALLOWED_ORIGINS: str = ""
     # Kinde Configurations
     KINDE_DOMAIN: str = ""
     KINDE_CLIENT_ID: str = ""
@@ -15,9 +19,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"  # Safely ignore extra keys in .env
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()
