@@ -1,8 +1,17 @@
-import { ApiError } from "../domain/errors";
+import { ApiError } from "../domain/errors.ts";
 
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined | null>;
   token?: string;
+}
+
+function getStoredToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("cashbuffer_token") || localStorage.getItem("auth_token");
+  } catch {
+    return null;
+  }
 }
 
 export class HttpClient {
@@ -15,7 +24,8 @@ export class HttpClient {
     } else if (typeof window !== "undefined") {
       this.baseUrl = "/api/backend";
     } else {
-      this.baseUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const base = (process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
+      this.baseUrl = base.endsWith("/api/v1") ? base : `${base}/api/v1`;
     }
   }
 
@@ -37,9 +47,14 @@ export class HttpClient {
       }
     }
 
+    const activeToken =
+      token !== undefined
+        ? token
+        : (getStoredToken() || process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN || "dev-user");
+
     const defaultHeaders: Record<string, string> = {
       "Accept": "application/json",
-      ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+      ...(activeToken ? { "Authorization": `Bearer ${activeToken}` } : {}),
       ...(rest.body ? { "Content-Type": "application/json" } : {}),
     };
 
