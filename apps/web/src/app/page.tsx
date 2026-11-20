@@ -90,7 +90,7 @@ export default function DashboardPage() {
 
       {/* KPI Cards */}
       <section aria-labelledby="summary-heading">
-        <h2 id="summary-heading" className="sr-only" style={{ display: "none" }}>Financial Summary</h2>
+        <h2 id="summary-heading" className="sr-only">Financial Summary</h2>
         <div className="grid-stats">
           <div className="card">
             <div className="card-title">Net Cash Buffer</div>

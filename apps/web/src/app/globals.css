@@ -355,7 +355,7 @@ tbody tr:hover {
   flex: 1;
 }
 
-/* Accessibility Skip Link */
+/* Accessibility Skip Link & Screen Reader Only */
 .skip-link {
   position: absolute;
   top: -40px;
@@ -369,4 +369,16 @@ tbody tr:hover {
 
 .skip-link:focus {
   top: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

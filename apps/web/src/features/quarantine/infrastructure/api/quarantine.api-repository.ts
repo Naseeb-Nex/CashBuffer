@@ -8,8 +8,11 @@ import { QuarantineResolution, ReEvaluateResult } from "../../domain/quarantine.
 import { QuarantineRepository } from "../../domain/quarantine.repository";
 
 interface BackendReEvaluateDto {
-  evaluated_count: number;
-  auto_categorized_count: number;
+  status?: string;
+  user_id?: string;
+  updated_count?: number;
+  evaluated_count?: number;
+  auto_categorized_count?: number;
 }
 
 export class ApiQuarantineRepository implements QuarantineRepository {
@@ -47,9 +50,10 @@ export class ApiQuarantineRepository implements QuarantineRepository {
     const data = await this.http.post<BackendReEvaluateDto>("/ingestion/re-evaluate", null, {
       token,
     });
+    const count = data.updated_count ?? data.auto_categorized_count ?? 0;
     return {
-      evaluatedCount: data.evaluated_count,
-      autoCategorizedCount: data.auto_categorized_count,
+      evaluatedCount: data.evaluated_count ?? count,
+      autoCategorizedCount: count,
     };
   }
 }

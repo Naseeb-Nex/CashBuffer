@@ -91,7 +91,7 @@ export default function ChatPage() {
         )}
 
         <form onSubmit={handleSubmit} className="chat-input-bar">
-          <label htmlFor="chat-input" className="sr-only" style={{ display: "none" }}>
+          <label htmlFor="chat-input" className="sr-only">
             Message the AI Financial Assistant
           </label>
           <input
