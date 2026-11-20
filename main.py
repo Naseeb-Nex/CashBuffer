@@ -15,6 +15,7 @@ from app.api.notifications import router as notifications_router
 from app.api.rules import router as rules_router
 from app.api.telegram import router as telegram_router
 from app.api.transactions import router as transactions_router
+from app.core.config import settings
 from app.infrastructure.persistence.db_pool import close_db_pool, get_db_pool
 
 logging.basicConfig(level=logging.INFO)
@@ -61,9 +62,10 @@ app = FastAPI(
 )
 
 # CORS configuration
+allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()] or ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,4 +91,14 @@ for router in api_v1_routers:
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    return {"status": "ok", "service": "cashbuffer-api"}
+    db_connected = False
+    try:
+        pool = await get_db_pool()
+        db_connected = pool is not None
+    except Exception:
+        pass
+    return {
+        "status": "ok",
+        "service": "cashbuffer-api",
+        "database": "connected" if db_connected else "disconnected",
+    }

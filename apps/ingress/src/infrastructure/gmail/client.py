@@ -16,8 +16,8 @@ class GmailClient(EmailClient):
 
     def __init__(self, service: Any = None, credentials_path: str = "credentials.json", token_path: str = "token.json"):
         self._service = service
-        self.credentials_path = credentials_path
-        self.token_path = token_path
+        self.credentials_path = os.getenv("GMAIL_CREDENTIALS_PATH", credentials_path)
+        self.token_path = os.getenv("GMAIL_TOKEN_PATH", token_path)
 
     def _get_service(self) -> Any:
         if self._service is not None:
