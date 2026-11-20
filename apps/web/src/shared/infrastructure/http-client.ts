@@ -71,14 +71,33 @@ export class HttpClient {
 
       if (!response.ok) {
         let errorData: unknown;
+        const text = await response.text();
         try {
-          errorData = await response.json();
+          errorData = text ? JSON.parse(text) : undefined;
         } catch {
-          errorData = await response.text();
+          errorData = text || undefined;
         }
-        const message = (errorData && typeof errorData === "object" && "detail" in errorData)
-          ? String((errorData as { detail: unknown }).detail)
-          : response.statusText || `HTTP request failed with status ${response.status}`;
+
+        let message: string | undefined;
+        if (errorData && typeof errorData === "object") {
+          if ("detail" in errorData && (errorData as { detail: unknown }).detail != null) {
+            const detail = (errorData as { detail: unknown }).detail;
+            message = typeof detail === "string" ? detail : JSON.stringify(detail);
+          } else if ("message" in errorData && (errorData as { message: unknown }).message != null) {
+            const msg = (errorData as { message: unknown }).message;
+            message = typeof msg === "string" ? msg : JSON.stringify(msg);
+          }
+        } else if (typeof errorData === "string" && errorData.trim()) {
+          const trimmed = errorData.trim();
+          if (!trimmed.startsWith("<")) {
+            message = trimmed;
+          }
+        }
+
+        if (!message) {
+          message = response.statusText || `HTTP request failed with status ${response.status}`;
+        }
+
         throw new ApiError(message, response.status, errorData);
       }
 

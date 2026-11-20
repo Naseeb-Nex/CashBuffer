@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { HttpClient } from "./http-client.ts";
+import { ApiError } from "../domain/errors.ts";
 
 test("HttpClient: constructs correct base URL and prepends /api/v1 for SSR", () => {
   const client = new HttpClient("http://custom-api:8000");
@@ -63,3 +64,63 @@ test("HttpClient: throws ApiError on non-200 response with detail message", asyn
     globalThis.fetch = originalFetch;
   }
 });
+
+test("HttpClient: handles non-JSON error response without double body read", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return new Response("Bad Gateway", {
+      status: 502,
+      statusText: "Bad Gateway",
+      headers: { "Content-Type": "text/html" },
+    });
+  };
+
+  try {
+    const client = new HttpClient("http://localhost:8000/api/v1");
+    await assert.rejects(
+      async () => {
+        await client.get("/transactions");
+      },
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError);
+        assert.equal(err.name, "ApiError");
+        assert.equal(err.statusCode, 502);
+        assert.equal(err.message, "Bad Gateway");
+        assert.equal(err.details, "Bad Gateway");
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("HttpClient: falls back to statusText when error body is HTML markup", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    return new Response("<html><body>502 Bad Gateway</body></html>", {
+      status: 502,
+      statusText: "Bad Gateway",
+      headers: { "Content-Type": "text/html" },
+    });
+  };
+
+  try {
+    const client = new HttpClient("http://localhost:8000/api/v1");
+    await assert.rejects(
+      async () => {
+        await client.get("/transactions");
+      },
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError);
+        assert.equal(err.name, "ApiError");
+        assert.equal(err.statusCode, 502);
+        assert.equal(err.message, "Bad Gateway");
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
