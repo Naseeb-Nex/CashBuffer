@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { INGRESS_INTERVAL_OPTIONS } from "@/features/ingress/domain/referentials/ingress.referentials";
-import { formatIntervalLabel, getStatusColor } from "@/features/ingress/domain/ingress.service";
+import { formatIntervalLabel } from "@/features/ingress/domain/ingress.service";
 import { IngressIntervalMinutes } from "@/features/ingress/domain/ingress.model";
 import { useIngress } from "@/features/ingress/infrastructure/hooks/useIngress";
 import { formatDate } from "@/features/transactions/domain/transaction.service";
@@ -52,30 +52,28 @@ export default function IngressPage() {
     }
   };
 
-  const statusColor = config ? getStatusColor(config.status) : "idle";
-
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>Ingress Controls & Status</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+          <h1 className="page-title">Ingress Controls & Status</h1>
+          <p className="page-subtitle">
             Autonomous Gmail polling daemon and synchronization cron
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "var(--space-md)" }}>
           <button
             onClick={() => triggerSync()}
             disabled={syncing || loading}
-            className="btn btn-primary"
+            className="btn btn-primary btn-sm"
             aria-label="Trigger immediate Gmail synchronization"
           >
-            {syncing ? "Triggering..." : "⚡ Sync Now"}
+            {syncing ? "Triggering..." : "Sync Now"}
           </button>
           <button
             onClick={() => refresh()}
             disabled={loading}
-            className="btn btn-secondary"
+            className="btn btn-secondary btn-sm"
             aria-label="Refresh ingress status"
           >
             Refresh
@@ -84,32 +82,13 @@ export default function IngressPage() {
       </div>
 
       {notice && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            padding: "0.75rem 1rem",
-            backgroundColor: "var(--badge-green-bg)",
-            color: "var(--badge-green-text)",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1.5rem",
-          }}
-        >
+        <div role="status" aria-live="polite" className="notice-box">
           {notice}
         </div>
       )}
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            padding: "0.75rem 1rem",
-            backgroundColor: "var(--badge-red-bg)",
-            color: "var(--badge-red-text)",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1.5rem",
-          }}
-        >
+        <div role="alert" className="alert-box">
           {error}
         </div>
       )}
@@ -118,87 +97,57 @@ export default function IngressPage() {
       <div className="grid-stats">
         <div className="card">
           <div className="card-title">Service State</div>
-          <div className="card-value">
-            <span
-              className={`badge badge-${
-                statusColor === "running" ? "warning" : statusColor === "error" ? "danger" : "success"
-              }`}
-            >
-              {config?.status || "Idle"}
-            </span>
+          <div className="card-value" style={{ fontSize: "var(--font-heading-md-size)" }}>
+            {config?.status || "Idle"}
           </div>
-          <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
+          <div style={{ fontSize: "var(--font-caption-size)", color: "var(--text-dark-muted)", marginTop: "var(--space-sm)" }}>
             Provider: {config?.provider || "gmail"}
           </div>
         </div>
 
         <div className="card">
           <div className="card-title">Automated Sync</div>
-          <div className="card-value">
-            {config?.isEnabled ? (
-              <span style={{ color: "var(--accent-green)" }}>Active</span>
-            ) : (
-              <span style={{ color: "var(--text-muted)" }}>Paused</span>
-            )}
+          <div className="card-value" style={{ fontSize: "var(--font-heading-md-size)" }}>
+            {config?.isEnabled ? "Active" : "Paused"}
           </div>
-          <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
+          <div style={{ fontSize: "var(--font-caption-size)", color: "var(--text-dark-muted)", marginTop: "var(--space-sm)" }}>
             {config ? formatIntervalLabel(config.intervalMinutes) : "-"}
           </div>
         </div>
 
         <div className="card">
           <div className="card-title">Total Emails Processed</div>
-          <div className="card-value blue">
+          <div className="card-value">
             {status?.totalProcessed ?? 0}
           </div>
-          <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
+          <div style={{ fontSize: "var(--font-caption-size)", color: "var(--text-dark-muted)", marginTop: "var(--space-sm)" }}>
             Checkpoint: {status?.lastHistoryId ? `History ID ${status.lastHistoryId}` : "None"}
           </div>
         </div>
 
         <div className="card">
           <div className="card-title">Next Scheduled Run</div>
-          <div className="card-value" style={{ fontSize: "1.125rem" }}>
+          <div className="card-value" style={{ fontSize: "var(--font-heading-sm-size)" }}>
             {formatTimestamp(config?.nextRunAt)}
           </div>
-          <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
-            Last run: {formatTimestamp(config?.lastRunAt)}
+          <div style={{ fontSize: "var(--font-caption-size)", color: "var(--text-dark-muted)", marginTop: "var(--space-sm)" }}>
+            Last Run: {formatTimestamp(status?.lastRunAt)}
           </div>
         </div>
       </div>
 
-      {/* Controls & Configuration */}
-      <section className="card" style={{ marginBottom: "1.5rem" }} aria-labelledby="ingress-config-heading">
-        <h2 id="ingress-config-heading" style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "1rem" }}>
-          Schedule Configuration
+      {/* Ingress Configuration Controls */}
+      <section className="card" style={{ marginBottom: "var(--space-xl)" }} aria-labelledby="ingress-config-heading">
+        <h2 id="ingress-config-heading" style={{ fontSize: "var(--font-heading-sm-size)", fontWeight: 500, letterSpacing: "-0.44px", marginBottom: "var(--space-base)", color: "var(--canvas)" }}>
+          Daemon Execution Settings
         </h2>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", maxWidth: "480px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>Automated Polling</div>
-              <div style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
-                Enable or disable automated recurring inbox checks
-              </div>
-            </div>
-            <button
-              onClick={handleToggleEnabled}
-              disabled={saving || !config}
-              className={`btn ${config?.isEnabled ? "btn-secondary" : "btn-primary"}`}
-              aria-label="Toggle automated polling"
-            >
-              {config?.isEnabled ? "Pause Polling" : "Enable Polling"}
-            </button>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="sync-interval" className="form-label">
-              Polling Frequency
-            </label>
+        <div style={{ display: "flex", gap: "var(--space-xl)", flexWrap: "wrap", alignItems: "center" }}>
+          <div>
+            <label className="form-label" style={{ display: "block", marginBottom: "var(--space-xs)" }}>Polling Interval</label>
             <select
-              id="sync-interval"
+              aria-label="Polling Interval"
               className="form-select"
-              value={config?.intervalMinutes || 60}
+              value={config?.intervalMinutes ?? 15}
               onChange={(e) => handleIntervalChange(Number(e.target.value))}
               disabled={saving || !config}
             >
@@ -209,27 +158,29 @@ export default function IngressPage() {
               ))}
             </select>
           </div>
+
+          <div>
+            <label className="form-label" style={{ display: "block", marginBottom: "var(--space-xs)" }}>Daemon Execution</label>
+            <button
+              onClick={handleToggleEnabled}
+              disabled={saving || !config}
+              className="btn btn-primary btn-sm"
+              aria-label="Toggle autonomous ingress execution"
+            >
+              {saving ? "Updating..." : config?.isEnabled ? "Pause Daemon" : "Resume Daemon"}
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* Diagnostic & Error Log */}
-      {config?.lastError && (
-        <section className="card" style={{ borderLeft: "4px solid var(--accent-red)" }} aria-labelledby="error-heading">
-          <h2 id="error-heading" style={{ fontSize: "1rem", fontWeight: 600, color: "var(--accent-red)", marginBottom: "0.5rem" }}>
-            Last Ingress Diagnostic Error
+      {/* Sync Diagnostics / History */}
+      {status?.lastError && (
+        <section aria-labelledby="ingress-error-heading" className="alert-box">
+          <h2 id="ingress-error-heading" style={{ fontWeight: 500, marginBottom: "var(--space-xs)" }}>
+            Last Ingestion Error Encountered
           </h2>
-          <pre
-            tabIndex={0}
-            style={{
-              padding: "0.75rem",
-              background: "var(--bg-primary)",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.8125rem",
-              overflowX: "auto",
-              color: "var(--badge-red-text)",
-            }}
-          >
-            {config.lastError}
+          <pre style={{ overflowX: "auto", fontSize: "12px", color: "var(--ink-muted)", marginTop: "var(--space-xs)" }}>
+            {status.lastError}
           </pre>
         </section>
       )}

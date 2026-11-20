@@ -17,7 +17,7 @@ export function HeaderNav() {
     <header className="header-bar" role="banner">
       <div className="brand">
         <span>CashBuffer</span>
-        <span className="brand-badge">Clean Arch</span>
+        <span className="brand-badge">Analogue</span>
       </div>
       <nav aria-label="Main Navigation">
         <ul className="nav-links">
