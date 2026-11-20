@@ -5,3 +5,9 @@ token.json
 __pycache__/
 venv/
 test.db
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
