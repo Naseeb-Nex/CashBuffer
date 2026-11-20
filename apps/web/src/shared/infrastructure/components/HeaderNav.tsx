@@ -7,7 +7,8 @@ export function HeaderNav() {
   const pathname = usePathname();
 
   const links = [
-    { href: "/", label: "Dashboard" },
+    { href: "/", label: "Home" },
+    { href: "/dashboard", label: "Dashboard" },
     { href: "/quarantine", label: "Quarantine Review" },
     { href: "/ingress", label: "Ingress & Cron" },
     { href: "/chat", label: "AI Financial Chat" },
@@ -15,10 +16,10 @@ export function HeaderNav() {
 
   return (
     <header className="header-bar" role="banner">
-      <div className="brand">
+      <Link href="/" className="brand" aria-label="CashBuffer Home">
         <span>CashBuffer</span>
         <span className="brand-badge">Clean Arch</span>
-      </div>
+      </Link>
       <nav aria-label="Main Navigation">
         <ul className="nav-links">
           {links.map((link) => {
@@ -37,6 +38,11 @@ export function HeaderNav() {
           })}
         </ul>
       </nav>
+      <div className="header-actions">
+        <Link href="/login" className="login-btn" aria-label="Log in to CashBuffer">
+          Log in
+        </Link>
+      </div>
     </header>
   );
 }
