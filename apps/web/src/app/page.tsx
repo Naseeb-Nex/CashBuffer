@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   formatCurrency,
   formatDate,
-  getStatusBadgeVariant,
   validateTransactionInput,
 } from "@/features/transactions/domain/transaction.service";
 import { TRANSACTION_STATUS_OPTIONS } from "@/features/transactions/domain/referentials/transaction.referentials";
@@ -61,29 +60,20 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>Expenses Dashboard</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
-            Household cash flow, buffer metrics, and categorized ledger
+          <h1 className="page-title">Expenses Dashboard</h1>
+          <p className="page-subtitle">
+            Household cash-flow tracking and categorization
           </p>
         </div>
-        <button onClick={() => refresh()} className="btn btn-secondary" aria-label="Refresh financial data">
-          Refresh Data
+        <button onClick={() => refresh()} className="btn btn-secondary btn-sm" aria-label="Refresh financial data">
+          Refresh
         </button>
       </div>
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            padding: "0.75rem 1rem",
-            backgroundColor: "var(--badge-red-bg)",
-            color: "var(--badge-red-text)",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1.5rem",
-          }}
-        >
+        <div role="alert" className="alert-box">
           {error}
         </div>
       )}
@@ -94,25 +84,25 @@ export default function DashboardPage() {
         <div className="grid-stats">
           <div className="card">
             <div className="card-title">Net Cash Buffer</div>
-            <div className={`card-value ${(summary?.netBuffer ?? 0) >= 0 ? "green" : "red"}`}>
+            <div className="card-value">
               {summary ? formatCurrency(summary.netBuffer) : "-"}
             </div>
           </div>
           <div className="card">
             <div className="card-title">Total Inflow</div>
-            <div className="card-value green">
+            <div className="card-value">
               {summary ? formatCurrency(summary.totalInflow) : "-"}
             </div>
           </div>
           <div className="card">
             <div className="card-title">Total Outflow</div>
-            <div className="card-value red">
+            <div className="card-value">
               {summary ? formatCurrency(summary.totalOutflow) : "-"}
             </div>
           </div>
           <div className="card">
             <div className="card-title">Needs Review / Quarantined</div>
-            <div className="card-value amber">
+            <div className="card-value">
               {summary ? summary.uncategorizedCount : "-"}
             </div>
           </div>
@@ -120,44 +110,44 @@ export default function DashboardPage() {
       </section>
 
       {/* Quick Ingest Form */}
-      <section className="card" style={{ marginBottom: "1.5rem" }} aria-labelledby="add-tx-heading">
-        <h2 id="add-tx-heading" style={{ fontSize: "1.125rem", fontWeight: 600, marginBottom: "0.75rem" }}>
+      <section className="card" style={{ marginBottom: "var(--space-xl)" }} aria-labelledby="add-tx-heading">
+        <h2 id="add-tx-heading" style={{ fontSize: "var(--font-heading-sm-size)", fontWeight: 500, letterSpacing: "-0.44px", marginBottom: "var(--space-md)", color: "var(--canvas)" }}>
           Quick Direct Ingestion
         </h2>
         {formError && (
-          <div role="alert" style={{ color: "var(--accent-red)", fontSize: "0.875rem", marginBottom: "0.5rem" }}>
+          <div role="alert" style={{ color: "var(--canvas)", fontSize: "var(--font-caption-size)", marginBottom: "var(--space-sm)", opacity: 0.85 }}>
             {formError}
           </div>
         )}
-        <form onSubmit={handleAddTransaction} style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+        <form onSubmit={handleAddTransaction} style={{ display: "flex", gap: "var(--space-md)", flexWrap: "wrap", alignItems: "flex-end" }}>
           <div className="form-group" style={{ flex: "2", minWidth: "200px", marginBottom: 0 }}>
-            <label htmlFor="vendor" className="form-label">Vendor / Description</label>
+            <label htmlFor="tx-vendor" className="form-label">Vendor / Narration</label>
             <input
-              id="vendor"
+              id="tx-vendor"
               type="text"
+              placeholder="e.g. Swiggy, Netflix, Salary"
               className="form-input"
               value={vendorInput}
               onChange={(e) => setVendorInput(e.target.value)}
-              placeholder="e.g. Swiggy, Netflix, Amazon"
               required
             />
           </div>
           <div className="form-group" style={{ flex: "1", minWidth: "130px", marginBottom: 0 }}>
-            <label htmlFor="amount" className="form-label">Amount (INR)</label>
+            <label htmlFor="tx-amount" className="form-label">Amount (INR)</label>
             <input
-              id="amount"
+              id="tx-amount"
               type="number"
               step="0.01"
               min="0.01"
+              placeholder="0.00"
               className="form-input"
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
-              placeholder="0.00"
               required
             />
           </div>
           <div className="form-group" style={{ marginBottom: 0, justifyContent: "center" }}>
-            <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", height: "38px" }}>
+            <label className="form-label" style={{ display: "flex", alignItems: "center", gap: "var(--space-xs)", cursor: "pointer", height: "42px" }}>
               <input
                 type="checkbox"
                 checked={isInflowInput}
@@ -166,26 +156,26 @@ export default function DashboardPage() {
               <span>Inflow (Income)</span>
             </label>
           </div>
-          <button type="submit" disabled={submitting} className="btn btn-primary" style={{ height: "38px" }}>
+          <button type="submit" disabled={submitting} className="btn btn-primary btn-sm" style={{ height: "42px" }}>
             {submitting ? "Ingesting..." : "Record Transaction"}
           </button>
         </form>
       </section>
 
       {/* Filter Bar */}
-      <section style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "center", marginBottom: "1rem" }} aria-label="Transaction Filters">
+      <section style={{ display: "flex", gap: "var(--space-md)", flexWrap: "wrap", alignItems: "center", marginBottom: "var(--space-md)" }} aria-label="Transaction Filters">
         <input
           type="search"
           aria-label="Search transactions"
           placeholder="Search vendor..."
-          className="form-input"
+          className="filter-input"
           style={{ maxWidth: "260px" }}
           value={filter.search || ""}
           onChange={(e) => setFilter((prev) => ({ ...prev, search: e.target.value }))}
         />
         <select
           aria-label="Filter by status"
-          className="form-select"
+          className="filter-input"
           value={filter.status || "all"}
           onChange={(e) => {
             const val = e.target.value;
@@ -196,10 +186,10 @@ export default function DashboardPage() {
           }}
         >
           {TRANSACTION_STATUS_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+            <option key={opt.value} value={opt.value} style={{ background: "#000", color: "#fff" }}>{opt.label}</option>
           ))}
         </select>
-        <span aria-live="polite" style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginLeft: "auto" }}>
+        <span aria-live="polite" style={{ color: "var(--ink-muted)", fontSize: "var(--font-caption-size)", marginLeft: "auto" }}>
           {loading ? "Loading transactions..." : `${transactions.length} records`}
         </span>
       </section>
@@ -219,25 +209,24 @@ export default function DashboardPage() {
           <tbody>
             {transactions.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-muted)" }}>
+                <td colSpan={5} style={{ textAlign: "center", padding: "2rem", color: "var(--text-dark-muted)" }}>
                   {loading ? "Fetching transactions from server..." : "No transactions found"}
                 </td>
               </tr>
             ) : (
               transactions.map((tx) => {
                 const category = categories.find((c) => c.id === tx.categoryId);
-                const badgeVariant = getStatusBadgeVariant(tx.status);
                 return (
                   <tr key={tx.id}>
                     <td>{formatDate(tx.recordDate)}</td>
-                    <td style={{ fontWeight: 600 }}>{tx.vendorRaw}</td>
-                    <td>{category ? category.name : <span style={{ color: "var(--text-muted)" }}>Unassigned</span>}</td>
+                    <td style={{ fontWeight: 500 }}>{tx.vendorRaw}</td>
+                    <td>{category ? category.name : <span style={{ color: "var(--text-dark-muted)" }}>Unassigned</span>}</td>
                     <td>
-                      <span className={`badge badge-${badgeVariant}`}>
+                      <span className="badge">
                         {tx.status}
                       </span>
                     </td>
-                    <td style={{ textAlign: "right", fontWeight: 700, color: tx.isInflow ? "var(--accent-green)" : "inherit" }}>
+                    <td style={{ textAlign: "right", fontWeight: 500 }}>
                       {tx.isInflow ? "+" : "-"}
                       {formatCurrency(tx.amount, tx.currency)}
                     </td>
