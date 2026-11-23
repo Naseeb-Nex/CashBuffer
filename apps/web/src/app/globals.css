@@ -170,9 +170,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-subtle);
-  padding: 0 var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
   min-height: 48px;
   background-color: var(--canvas);
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
 }
 
 .brand {
@@ -198,9 +200,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .nav-links {
   display: flex;
-  gap: var(--space-lg);
+  gap: var(--space-md) var(--space-lg);
   list-style: none;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .nav-item {
@@ -212,6 +215,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   padding: var(--space-xs) 0;
   transition: color 0.15s ease;
   position: relative;
+  white-space: nowrap;
 }
 
 .nav-item:hover {
