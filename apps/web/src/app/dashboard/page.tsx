@@ -111,11 +111,11 @@ export default function DashboardPage() {
 
       {/* Quick Ingest Form */}
       <section className="card" style={{ marginBottom: "var(--space-xl)" }} aria-labelledby="add-tx-heading">
-        <h2 id="add-tx-heading" style={{ fontSize: "var(--font-heading-sm-size)", fontWeight: 500, letterSpacing: "-0.44px", marginBottom: "var(--space-md)", color: "var(--canvas)" }}>
+        <h2 id="add-tx-heading" style={{ fontSize: "var(--font-heading-sm-size)", fontWeight: 500, letterSpacing: "-0.44px", marginBottom: "var(--space-md)", color: "var(--ink)" }}>
           Quick Direct Ingestion
         </h2>
         {formError && (
-          <div role="alert" style={{ color: "var(--canvas)", fontSize: "var(--font-caption-size)", marginBottom: "var(--space-sm)", opacity: 0.85 }}>
+          <div role="alert" style={{ color: "#ef4444", fontSize: "var(--font-caption-size)", marginBottom: "var(--space-sm)", opacity: 0.95 }}>
             {formError}
           </div>
         )}

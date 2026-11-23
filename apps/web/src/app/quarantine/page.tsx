@@ -137,7 +137,7 @@ export default function QuarantinePage() {
                           onClick={() => dismissItem(tx.id)}
                           disabled={actionInProgress}
                           className="btn btn-secondary btn-sm"
-                          style={{ borderColor: "var(--hairline)", color: "var(--canvas)" }}
+                          style={{ borderColor: "var(--hairline)", color: "var(--ink)" }}
                           aria-label={`Dismiss ${tx.vendorRaw}`}
                         >
                           Dismiss
