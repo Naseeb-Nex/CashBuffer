@@ -59,15 +59,17 @@ mockups:
   - "media-grid"
 
 colors:
-  ink: "#ffffff"
-  ink-muted: "#bfbfbf"
-  ink-faint: "#999999"
-  canvas: "#000000"
-  surface-1: "#eaeaea"
-  surface-card: "#ffffff"
-  hairline: "#d9d9d9"
-  accent-1: "#aeaeae"
-  accent-2: "#595959"
+  ink: "#0B0F14"
+  navy: "#0B1A5C"
+  royal: "#2F5BFF"
+  lime: "#D4F53C"
+  white: "#FFFFFF"
+  canvas: "#0B0F14"
+  surface-1: "#0B1A5C"
+  surface-card: "#0E1E66"
+  hairline: "#1C2D6D"
+  accent-1: "#2F5BFF"
+  accent-2: "#1A2859"
 
 typography:
   display-xl:

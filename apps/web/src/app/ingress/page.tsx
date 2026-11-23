@@ -138,7 +138,7 @@ export default function IngressPage() {
 
       {/* Ingress Configuration Controls */}
       <section className="card" style={{ marginBottom: "var(--space-xl)" }} aria-labelledby="ingress-config-heading">
-        <h2 id="ingress-config-heading" style={{ fontSize: "var(--font-heading-sm-size)", fontWeight: 500, letterSpacing: "-0.44px", marginBottom: "var(--space-base)", color: "var(--canvas)" }}>
+        <h2 id="ingress-config-heading" style={{ fontSize: "var(--font-heading-sm-size)", fontWeight: 500, letterSpacing: "-0.44px", marginBottom: "var(--space-base)", color: "var(--ink)" }}>
           Daemon Execution Settings
         </h2>
         <div style={{ display: "flex", gap: "var(--space-xl)", flexWrap: "wrap", alignItems: "center" }}>
