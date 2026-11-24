@@ -81,5 +81,31 @@ export async function syncKindeUser(user: KindeUserPayload): Promise<SyncedUser>
     RETURNING id, idp_user_id, email, telegram_chat_id, created_at, updated_at
   `) as SyncedUser[];
 
-  return inserted[0];
+  const userRecord = inserted[0];
+
+  // 4. Ensure default household exists
+  try {
+    const existingHh = (await sql`
+      SELECT id FROM households WHERE created_by = ${userRecord.id} LIMIT 1
+    `) as { id: string }[];
+
+    if (existingHh.length === 0) {
+      const hhName = user.given_name ? `${user.given_name}'s Household` : "Primary Household";
+      const [hh] = (await sql`
+        INSERT INTO households (name, created_by)
+        VALUES (${hhName}, ${userRecord.id})
+        RETURNING id
+      `) as { id: string }[];
+
+      await sql`
+        INSERT INTO household_members (household_id, user_id, role)
+        VALUES (${hh.id}, ${userRecord.id}, 'owner')
+        ON CONFLICT DO NOTHING
+      `;
+    }
+  } catch (err) {
+    console.error("Failed to provision default household:", err);
+  }
+
+  return userRecord;
 }
