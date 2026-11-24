@@ -1,4 +1,6 @@
 .env
+.env*.local
+.env.local
 local-mcp-server.sh
 credentials.json
 token.json

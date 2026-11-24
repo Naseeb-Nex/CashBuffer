@@ -23,6 +23,8 @@
   "packageManager": "pnpm@12.21.0",
   "type": "module",
   "dependencies": {
+    "@kinde-oss/kinde-auth-nextjs": "^2.13.2",
+    "@neondatabase/serverless": "^1.2.1",
     "next": "^16.4.6",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

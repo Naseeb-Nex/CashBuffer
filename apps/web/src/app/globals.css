@@ -237,6 +237,28 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border-bottom: 2px solid var(--royal-primary);
 }
 
+.nav-auth-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.nav-user-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.user-email-badge {
+  font-size: var(--font-caption-size);
+  color: var(--ink-muted);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Cards & Grid */
 .grid-stats {
   display: grid;

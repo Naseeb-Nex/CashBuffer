@@ -20,7 +20,7 @@ export default function LandingPage() {
           Real-time tracking of family cash flow, automated receipt ingestion, and an autonomous AI financial assistant keeping your liquid buffer intact.
         </p>
         <div className="landing-hero-actions">
-          <Link href="/login" className="btn btn-primary">
+          <Link href="/api/auth/login" className="btn btn-primary">
             Login
           </Link>
         </div>

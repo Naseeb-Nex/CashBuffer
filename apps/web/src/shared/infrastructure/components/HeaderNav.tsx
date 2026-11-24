@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useKindeBrowserClient, LoginLink, LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
 
 export function HeaderNav() {
   const pathname = usePathname();
+  const { isAuthenticated, user } = useKindeBrowserClient();
 
   const isPublicLanding = pathname === "/";
 
@@ -23,27 +25,59 @@ export function HeaderNav() {
         </Link>
       </div>
       <nav aria-label="Main Navigation">
-        {isPublicLanding ? (
-          <Link href="/login" className="btn btn-primary btn-sm">
+        {isAuthenticated ? (
+          <div className="nav-auth-container">
+            <ul className="nav-links">
+              {links.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className={`nav-item ${isActive ? "active" : ""}`}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="nav-user-profile">
+              <span className="user-email-badge" title={user?.email || "Authenticated"}>
+                {user?.email || user?.given_name || "Account"}
+              </span>
+              <LogoutLink className="btn btn-secondary btn-sm">
+                Logout
+              </LogoutLink>
+            </div>
+          </div>
+        ) : isPublicLanding ? (
+          <LoginLink className="btn btn-primary btn-sm">
             Login
-          </Link>
+          </LoginLink>
         ) : (
-          <ul className="nav-links">
-            {links.map((link) => {
-              const isActive = pathname === link.href;
-              return (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className={`nav-item ${isActive ? "active" : ""}`}
-                    aria-current={isActive ? "page" : undefined}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="nav-auth-container">
+            <ul className="nav-links">
+              {links.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className={`nav-item ${isActive ? "active" : ""}`}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <LoginLink className="btn btn-primary btn-sm">
+              Login
+            </LoginLink>
+          </div>
         )}
       </nav>
     </header>
