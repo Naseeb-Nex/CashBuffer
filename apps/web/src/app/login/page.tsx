@@ -10,16 +10,24 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="card login-card">
-        <h1 className="login-title">Login coming soon</h1>
+        <div className="landing-card-badge" style={{ marginBottom: "var(--space-sm)" }}>
+          CashBuffer Auth
+        </div>
+        <h1 className="login-title">Sign In to CashBuffer</h1>
         <p className="login-subtitle">
-          Secure household authentication is currently in development. You will soon be able to authenticate and manage your household cash buffer.
+          Household cash-flow intelligence and autonomous AI assistant. Sign in with your account or register a new household.
         </p>
         <div className="login-actions">
-          <Link href="/dashboard" className="btn btn-primary btn-sm">
-            Go to Dashboard
+          <Link href="/api/auth/login" className="btn btn-primary">
+            Sign In
           </Link>
-          <Link href="/" className="btn btn-secondary btn-sm">
-            Back to Home
+          <Link href="/api/auth/register" className="btn btn-secondary">
+            Register
+          </Link>
+        </div>
+        <div style={{ marginTop: "var(--space-lg)", borderTop: "1px solid var(--border-subtle)", paddingTop: "var(--space-md)" }}>
+          <Link href="/" className="nav-item" style={{ fontSize: "var(--font-caption-size)" }}>
+            ← Back to Home
           </Link>
         </div>
       </div>
