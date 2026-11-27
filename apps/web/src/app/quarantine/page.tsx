@@ -38,18 +38,18 @@ export default function QuarantinePage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>Quarantine Review</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+          <h1 className="page-title">Quarantine Review</h1>
+          <p className="page-subtitle">
             Transactions requiring verification or categorization confirmation
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "var(--space-md)" }}>
           <button
             onClick={() => reEvaluate()}
             disabled={actionInProgress}
-            className="btn btn-secondary"
+            className="btn btn-secondary btn-sm"
             aria-label="Re-evaluate all items against vendor rules"
           >
             Run Rule Engine
@@ -57,7 +57,7 @@ export default function QuarantinePage() {
           <button
             onClick={() => refresh()}
             disabled={loading}
-            className="btn btn-secondary"
+            className="btn btn-secondary btn-sm"
             aria-label="Refresh quarantine list"
           >
             Refresh
@@ -66,32 +66,13 @@ export default function QuarantinePage() {
       </div>
 
       {notice && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            padding: "0.75rem 1rem",
-            backgroundColor: "var(--badge-green-bg)",
-            color: "var(--badge-green-text)",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1.5rem",
-          }}
-        >
+        <div role="status" aria-live="polite" className="notice-box">
           {notice}
         </div>
       )}
 
       {error && (
-        <div
-          role="alert"
-          style={{
-            padding: "0.75rem 1rem",
-            backgroundColor: "var(--badge-red-bg)",
-            color: "var(--badge-red-text)",
-            borderRadius: "var(--radius-sm)",
-            marginBottom: "1.5rem",
-          }}
-        >
+        <div role="alert" className="alert-box">
           {error}
         </div>
       )}
@@ -111,8 +92,8 @@ export default function QuarantinePage() {
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
-                  {loading ? "Loading quarantined items..." : "🎉 All caught up! Zero items in quarantine review."}
+                <td colSpan={5} style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-dark-muted)" }}>
+                  {loading ? "Loading quarantined items..." : "All caught up. Zero items in quarantine review."}
                 </td>
               </tr>
             ) : (
@@ -121,8 +102,8 @@ export default function QuarantinePage() {
                 return (
                   <tr key={tx.id}>
                     <td>{formatDate(tx.recordDate)}</td>
-                    <td style={{ fontWeight: 600 }}>{tx.vendorRaw}</td>
-                    <td style={{ fontWeight: 700, color: tx.isInflow ? "var(--accent-green)" : "var(--accent-red)" }}>
+                    <td style={{ fontWeight: 500 }}>{tx.vendorRaw}</td>
+                    <td style={{ fontWeight: 500 }}>
                       {tx.isInflow ? "+" : "-"}
                       {formatCurrency(tx.amount, tx.currency)}
                     </td>
@@ -133,6 +114,7 @@ export default function QuarantinePage() {
                         value={selectedCat}
                         onChange={(e) => handleCategoryChange(tx.id, Number(e.target.value))}
                         disabled={actionInProgress}
+                        style={{ padding: "6px 12px", fontSize: "var(--font-caption-size)" }}
                       >
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>
@@ -142,12 +124,11 @@ export default function QuarantinePage() {
                       </select>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <div style={{ display: "inline-flex", gap: "0.5rem" }}>
+                      <div style={{ display: "inline-flex", gap: "var(--space-sm)" }}>
                         <button
                           onClick={() => handleResolve(tx.id)}
                           disabled={actionInProgress}
-                          className="btn btn-primary"
-                          style={{ padding: "0.35rem 0.75rem", fontSize: "0.8125rem" }}
+                          className="btn btn-primary btn-sm"
                           aria-label={`Approve and categorize ${tx.vendorRaw}`}
                         >
                           Approve
@@ -155,9 +136,9 @@ export default function QuarantinePage() {
                         <button
                           onClick={() => dismissItem(tx.id)}
                           disabled={actionInProgress}
-                          className="btn btn-danger"
-                          style={{ padding: "0.35rem 0.75rem", fontSize: "0.8125rem" }}
-                          aria-label={`Dismiss transaction ${tx.vendorRaw}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ borderColor: "var(--hairline)", color: "var(--ink)" }}
+                          aria-label={`Dismiss ${tx.vendorRaw}`}
                         >
                           Dismiss
                         </button>

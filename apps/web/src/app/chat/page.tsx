@@ -22,16 +22,16 @@ export default function ChatPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 700 }}>AI Financial Assistant</h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
+          <h1 className="page-title">AI Financial Assistant</h1>
+          <p className="page-subtitle">
             Natural language interface for your financial insights and expenses
           </p>
         </div>
         <button
           onClick={clearMessages}
-          className="btn btn-secondary"
+          className="btn btn-secondary btn-sm"
           aria-label="Clear chat conversation"
         >
           Reset Chat
@@ -45,14 +45,14 @@ export default function ChatPage() {
               <div>{msg.text}</div>
 
               {msg.actionsExecuted && msg.actionsExecuted.length > 0 && (
-                <div style={{ marginTop: "0.5rem", display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
+                <div style={{ marginTop: "var(--space-sm)", display: "flex", flexWrap: "wrap", gap: "var(--space-xs)" }}>
                   {msg.actionsExecuted.map((action, idx) => (
                     <span
                       key={idx}
-                      className="badge badge-info"
-                      style={{ fontSize: "0.65rem", padding: "0.1rem 0.4rem" }}
+                      className="badge badge-dark"
+                      style={{ fontSize: "11px", padding: "2px 8px" }}
                     >
-                      ⚡ {action}
+                      {action}
                     </span>
                   ))}
                 </div>
@@ -67,7 +67,7 @@ export default function ChatPage() {
 
           {sending && (
             <div className="chat-bubble assistant" aria-label="Assistant is thinking">
-              <span style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
+              <span style={{ color: "var(--ink-muted)", fontStyle: "italic" }}>
                 Analyzing and preparing response...
               </span>
             </div>
@@ -79,11 +79,11 @@ export default function ChatPage() {
           <div
             role="alert"
             style={{
-              padding: "0.5rem 1rem",
-              backgroundColor: "var(--badge-red-bg)",
-              color: "var(--badge-red-text)",
-              fontSize: "0.8125rem",
-              borderTop: "1px solid var(--border)",
+              padding: "var(--space-sm) var(--space-lg)",
+              backgroundColor: "transparent",
+              color: "var(--ink)",
+              fontSize: "var(--font-caption-size)",
+              borderTop: "1px solid var(--accent-2)",
             }}
           >
             {error}
@@ -97,7 +97,7 @@ export default function ChatPage() {
           <input
             id="chat-input"
             type="text"
-            className="form-input"
+            className="filter-input"
             placeholder="Ask e.g. 'What is my buffer balance?' or 'Show my highest expense'"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
@@ -107,11 +107,11 @@ export default function ChatPage() {
           />
           <button
             type="submit"
-            className="btn btn-primary"
-            disabled={sending || !inputText.trim()}
-            aria-label="Send message"
+            className="btn btn-primary btn-sm"
+            disabled={sending}
+            aria-label="Send message to assistant"
           >
-            Send
+            {sending ? "..." : "Send"}
           </button>
         </form>
       </div>
