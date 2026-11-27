@@ -13,7 +13,7 @@ export function HeaderNav() {
   const links = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/quarantine", label: "Quarantine Review" },
-    { href: "/ingress", label: "Ingress & Cron" },
+    { href: "/settings", label: "Settings" },
     { href: "/chat", label: "AI Financial Chat" },
   ];
 

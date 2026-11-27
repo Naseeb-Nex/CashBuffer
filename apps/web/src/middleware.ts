@@ -13,6 +13,8 @@ export const config = {
     "/quarantine/:path*",
     "/ingress",
     "/ingress/:path*",
+    "/settings",
+    "/settings/:path*",
     "/chat",
     "/chat/:path*",
   ],

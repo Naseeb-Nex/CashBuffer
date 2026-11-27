@@ -47,10 +47,38 @@ export class HttpClient {
       }
     }
 
-    const activeToken =
-      token !== undefined
-        ? token
-        : (getStoredToken() || process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN || "dev-user");
+    let activeToken = token;
+    if (activeToken === undefined) {
+      activeToken = getStoredToken() || undefined;
+      if (!activeToken && typeof window !== "undefined") {
+        try {
+          const res = await fetch("/api/auth/setup");
+          if (res.ok) {
+            const data = await res.json();
+            const raw =
+              data.idTokenRaw ||
+              data.idTokenEncoded ||
+              data.idToken ||
+              data.accessTokenRaw ||
+              data.accessTokenEncoded ||
+              data.accessToken;
+            if (raw) {
+              try {
+                localStorage.setItem("cashbuffer_token", raw);
+              } catch {
+                // ignore
+              }
+              activeToken = raw;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!activeToken) {
+        activeToken = process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN || "dev-user";
+      }
+    }
 
     const defaultHeaders: Record<string, string> = {
       "Accept": "application/json",
