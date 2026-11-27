@@ -9,7 +9,12 @@ import uuid
 from psycopg.rows import dict_row
 
 from apps.ingress.src.domain.interfaces import IngressRepository
-from apps.ingress.src.domain.models import IngressJob, ParsedAlert, SyncCheckpoint
+from apps.ingress.src.domain.models import (
+    IngressJob,
+    OAuthCredential,
+    ParsedAlert,
+    SyncCheckpoint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,7 @@ class NativeIngressRepository(IngressRepository):
             FROM ingress_configs
             WHERE is_enabled = TRUE
               AND next_run_at <= CURRENT_TIMESTAMP
-              AND status != 'running'
+              AND status NOT IN ('running', 'needs_reconnect')
             ORDER BY next_run_at ASC;
         """
         async with self.pool.connection() as conn:
@@ -174,3 +179,108 @@ class NativeIngressRepository(IngressRepository):
         async with self.pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, (status, interval_minutes, error, job_id))
+
+    async def get_oauth_credential(
+        self,
+        household_id: uuid.UUID,
+        source: str = "gmail",
+    ) -> OAuthCredential | None:
+        query = """
+            SELECT id, user_id, household_id, source, encrypted_access_token,
+                   encrypted_refresh_token, expires_at, is_valid, account_email,
+                   scopes, created_at, updated_at
+            FROM oauth_credentials
+            WHERE household_id = %s AND source = %s AND is_valid = TRUE
+            ORDER BY updated_at DESC
+            LIMIT 1;
+        """
+        async with self.pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(query, (household_id, source))
+                row = await cur.fetchone()
+                if not row:
+                    return None
+                return OAuthCredential(
+                    id=row["id"],
+                    user_id=uuid.UUID(str(row["user_id"])),
+                    household_id=uuid.UUID(str(row["household_id"])) if row.get("household_id") else None,
+                    source=row["source"],
+                    encrypted_access_token=row["encrypted_access_token"],
+                    encrypted_refresh_token=row["encrypted_refresh_token"],
+                    expires_at=row["expires_at"],
+                    is_valid=row["is_valid"],
+                    account_email=row.get("account_email"),
+                    scopes=row.get("scopes"),
+                    created_at=row.get("created_at"),
+                    updated_at=row.get("updated_at"),
+                )
+
+    async def update_oauth_credential(
+        self,
+        credential_id: int,
+        encrypted_access_token: str,
+        expires_at: Any,
+        encrypted_refresh_token: str | None = None,
+    ) -> None:
+        if encrypted_refresh_token:
+            query = """
+                UPDATE oauth_credentials
+                SET encrypted_access_token = %s,
+                    encrypted_refresh_token = %s,
+                    expires_at = %s,
+                    is_valid = TRUE,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s;
+            """
+            params = (encrypted_access_token, encrypted_refresh_token, expires_at, credential_id)
+        else:
+            query = """
+                UPDATE oauth_credentials
+                SET encrypted_access_token = %s,
+                    expires_at = %s,
+                    is_valid = TRUE,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s;
+            """
+            params = (encrypted_access_token, expires_at, credential_id)
+
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+
+    async def mark_oauth_credential_invalid(
+        self,
+        credential_id: int | None = None,
+        household_id: uuid.UUID | None = None,
+        source: str = "gmail",
+    ) -> None:
+        if credential_id is not None:
+            query = "UPDATE oauth_credentials SET is_valid = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = %s;"
+            params = (credential_id,)
+        elif household_id is not None:
+            query = "UPDATE oauth_credentials SET is_valid = FALSE, updated_at = CURRENT_TIMESTAMP WHERE household_id = %s AND source = %s;"
+            params = (household_id, source)
+        else:
+            return
+
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+
+    async def update_ingress_config_status(
+        self,
+        household_id: uuid.UUID,
+        status: str,
+        error: str | None = None,
+        provider: str = "gmail",
+    ) -> None:
+        query = """
+            UPDATE ingress_configs
+            SET status = %s,
+                last_error = %s
+            WHERE household_id = %s AND provider = %s;
+        """
+        async with self.pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, (status, error, household_id, provider))
+
