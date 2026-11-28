@@ -222,7 +222,7 @@ export default function SettingsPage() {
                 disabled
                 className="btn btn-secondary btn-sm"
                 aria-disabled="true"
-                title="Connect Gmail coming soon in Phase 2"
+                title="Connect Gmail coming soon"
               >
                 Connect Gmail (Coming soon)
               </button>
@@ -354,7 +354,7 @@ export default function SettingsPage() {
             </div>
             <div className="settings-card-body">
               <p style={{ margin: 0, fontSize: "var(--font-body-sm-size)", color: "var(--ink-muted)" }}>
-                Emails ingested: <strong style={{ color: "var(--ink)" }}>{status?.totalProcessed ?? 0}</strong>
+                Emails checked: <strong style={{ color: "var(--ink)" }}>{status?.totalProcessed ?? 0}</strong>
               </p>
               <p style={{ margin: 0, fontSize: "var(--font-caption-size)", color: "var(--ink-muted)" }}>
                 Transactions needing categorization or manual confirmation are held for review.
@@ -378,7 +378,7 @@ export default function SettingsPage() {
               Check history will appear here
             </p>
             <p style={{ margin: "var(--space-xs) 0 0 0", fontSize: "var(--font-caption-size)", color: "var(--ink-muted)" }}>
-              Detailed run history and checkpoint logs will be stored in Phase 2.
+              Check history will be added soon.
             </p>
           </div>
         </div>
