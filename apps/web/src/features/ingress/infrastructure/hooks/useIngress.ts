@@ -27,7 +27,7 @@ export function useIngress(provider: string = "gmail") {
       setConfig(cfg);
       setStatus(stat);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load ingress configuration");
+      setError(err instanceof Error ? err.message : "Failed to load email settings");
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export function useIngress(provider: string = "gmail") {
         provider,
       });
       setConfig(updated);
-      setNotice("Ingress configuration updated successfully.");
+      setNotice("Email check settings updated successfully.");
       // Refresh status as well
       defaultIngressRepository.getStatus(provider).then(setStatus).catch(() => {});
       return updated;
@@ -60,11 +60,11 @@ export function useIngress(provider: string = "gmail") {
     setError(null);
     try {
       const result = await defaultIngressRepository.triggerSync(provider);
-      setNotice(result.message || "Manual sync triggered successfully.");
+      setNotice(result.message || "Email check completed successfully.");
       setConfig(result.config);
       await fetchData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to trigger sync");
+      setError(err instanceof Error ? err.message : "Failed to check email");
     } finally {
       setSyncing(false);
     }
