@@ -12,7 +12,11 @@ import httplib2
 from app.core.crypto import encrypt_key
 from apps.ingress.src.application.sync_service import IngressSyncService
 from apps.ingress.src.domain.models import IngressJob, OAuthCredential
-from apps.ingress.src.infrastructure.gmail.client import GmailClient, mask_email
+from apps.ingress.src.infrastructure.gmail.client import (
+    GmailClient,
+    OAuthDecryptionError,
+    mask_email,
+)
 from apps.ingress.src.infrastructure.persistence.ingress_repository import (
     NativeIngressRepository,
 )
@@ -132,7 +136,7 @@ async def test_expired_token_refresh_persists_ciphertext():
 
 @pytest.mark.asyncio
 async def test_sync_service_skips_when_no_credentials():
-    """Verify sync_service gracefully skips household when no credentials exist without crashing."""
+    """Verify sync_service gracefully skips household when no credentials exist and advances next_run_at."""
     mock_repo = AsyncMock()
     hid = uuid.uuid4()
     uid = uuid.uuid4()
@@ -153,8 +157,135 @@ async def test_sync_service_skips_when_no_credentials():
         assert res["success"] is False
         assert res["skipped"] is True
         assert res["reason"] == "no_credentials"
-        # Repository mark_job_status not failed
-        mock_repo.mark_job_status.assert_not_called()
+        # Must advance next_run_at with at least 60m backoff to prevent scheduler busy-loop
+        mock_repo.mark_job_status.assert_awaited_once_with(
+            job_id=job.id,
+            status="idle",
+            interval_minutes=60,
+            error="No Gmail credentials configured",
+        )
+
+
+@pytest.mark.asyncio
+async def test_sync_service_skips_when_no_credentials_minimum_60m_backoff():
+    """Verify missing credentials backoff enforces minimum 60m even if config interval is smaller."""
+    mock_repo = AsyncMock()
+    hid = uuid.uuid4()
+    uid = uuid.uuid4()
+    job = IngressJob(
+        id=uuid.uuid4(),
+        household_id=hid,
+        user_id=uid,
+        provider="gmail",
+        interval_minutes=15,  # Smaller interval
+        next_run_at=datetime.now(timezone.utc),
+        status="idle",
+    )
+
+    mock_repo.get_oauth_credential.return_value = None
+    with patch("apps.ingress.src.infrastructure.gmail.client.os.path.exists", return_value=False):
+        sync = IngressSyncService(repository=mock_repo, email_client=None, parser=None)
+        res = await sync.execute_job(job)
+        assert res["success"] is False
+        assert res["skipped"] is True
+        assert res["reason"] == "no_credentials"
+        # Must bump by max(interval, 60) -> 60 minutes
+        mock_repo.mark_job_status.assert_awaited_once_with(
+            job_id=job.id,
+            status="idle",
+            interval_minutes=60,
+            error="No Gmail credentials configured",
+        )
+
+
+@pytest.mark.asyncio
+async def test_gmail_client_for_household_db_decrypt_failure_no_file_fallback(tmp_path):
+    """Verify decrypt failure of DB credential marks needs_reconnect and NEVER falls back to token file."""
+    mock_repo = AsyncMock()
+    hid = uuid.uuid4()
+    uid = uuid.uuid4()
+
+    db_cred = OAuthCredential(
+        id=88,
+        user_id=uid,
+        household_id=hid,
+        source="gmail",
+        encrypted_access_token="corrupt-ciphertext-cannot-decrypt",
+        encrypted_refresh_token="corrupt-refresh",
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        is_valid=True,
+        account_email="corrupt@gmail.com",
+    )
+    mock_repo.get_oauth_credential.return_value = db_cred
+
+    # Create token.json file to prove it is NOT accessed
+    token_file = tmp_path / "token.json"
+    token_file.write_text('{"token": "fallback-token", "refresh_token": "fallback-refresh"}')
+
+    with patch.dict("os.environ", {"GMAIL_TOKEN_PATH": str(token_file)}):
+        with pytest.raises(OAuthDecryptionError) as exc_info:
+            await GmailClient.for_household(household_id=hid, repo=mock_repo)
+
+        assert "Failed to decrypt stored credentials" in str(exc_info.value)
+
+        # Verified: DB credential marked invalid
+        mock_repo.mark_oauth_credential_invalid.assert_awaited_once_with(credential_id=88)
+        # Verified: Ingress config marked needs_reconnect with plain error
+        mock_repo.update_ingress_config_status.assert_awaited_once_with(
+            household_id=hid,
+            status="needs_reconnect",
+            error="Failed to decrypt stored credentials. Reconnection required.",
+            provider="gmail",
+        )
+
+
+@pytest.mark.asyncio
+async def test_sync_service_on_db_decrypt_failure_transitions_to_needs_reconnect(tmp_path):
+    """Verify sync_service handles DB decrypt failure by marking needs_reconnect without using file fallback."""
+    mock_repo = AsyncMock()
+    hid = uuid.uuid4()
+    uid = uuid.uuid4()
+    job = IngressJob(
+        id=uuid.uuid4(),
+        household_id=hid,
+        user_id=uid,
+        provider="gmail",
+        interval_minutes=60,
+        next_run_at=datetime.now(timezone.utc),
+        status="idle",
+    )
+
+    db_cred = OAuthCredential(
+        id=77,
+        user_id=uid,
+        household_id=hid,
+        source="gmail",
+        encrypted_access_token="bad-ciphertext",
+        encrypted_refresh_token="bad-refresh",
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        is_valid=True,
+        account_email="bad@gmail.com",
+    )
+    mock_repo.get_oauth_credential.return_value = db_cred
+
+    token_file = tmp_path / "token.json"
+    token_file.write_text('{"token": "fallback-token"}')
+
+    with patch.dict("os.environ", {"GMAIL_TOKEN_PATH": str(token_file)}):
+        sync = IngressSyncService(repository=mock_repo, email_client=None, parser=None)
+        res = await sync.execute_job(job)
+
+        assert res["success"] is False
+        assert res["status"] == "needs_reconnect"
+        assert res["error"] == "Failed to decrypt stored credentials. Reconnection required."
+
+        # Verified: mark_job_status set to needs_reconnect
+        mock_repo.mark_job_status.assert_awaited_once_with(
+            job_id=job.id,
+            status="needs_reconnect",
+            interval_minutes=60,
+            error="Failed to decrypt stored credentials. Reconnection required.",
+        )
 
 
 @pytest.mark.asyncio
@@ -249,6 +380,28 @@ async def test_sync_service_skips_needs_reconnect_status():
     assert res["success"] is False
     assert res["skipped"] is True
     assert res["reason"] == "needs_reconnect"
+
+
+@pytest.mark.asyncio
+async def test_sync_service_skips_disconnected_status():
+    """Verify a job in disconnected state is skipped and not retried."""
+    mock_repo = AsyncMock()
+    hid = uuid.uuid4()
+    job = IngressJob(
+        id=uuid.uuid4(),
+        household_id=hid,
+        user_id=uuid.uuid4(),
+        provider="gmail",
+        interval_minutes=60,
+        next_run_at=datetime.now(timezone.utc),
+        status="disconnected",
+    )
+
+    sync = IngressSyncService(repository=mock_repo, email_client=None, parser=None)
+    res = await sync.execute_job(job)
+    assert res["success"] is False
+    assert res["skipped"] is True
+    assert res["reason"] == "disconnected"
 
 
 @pytest.mark.asyncio

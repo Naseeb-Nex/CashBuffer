@@ -15,6 +15,11 @@ from apps.ingress.src.domain.interfaces import EmailClient, IngressRepository
 logger = logging.getLogger(__name__)
 
 
+class OAuthDecryptionError(Exception):
+    """Raised when decrypting stored OAuth credential fails."""
+    pass
+
+
 def mask_email(email: str | None) -> str:
     """Mask email for privacy in logs (e.g. user@example.com -> u***@example.com)."""
     if not email or "@" not in email:
@@ -94,10 +99,18 @@ class GmailClient(EmailClient):
                     repo=repo,
                 )
             except Exception as e:
-                logger.error("Failed to decrypt or construct DB credentials for household=%s: %s", household_id, e)
-                return None
+                plain_error = "Failed to decrypt stored credentials. Reconnection required."
+                logger.error("Failed to decrypt DB credentials for household=%s: %s", household_id, plain_error)
+                await repo.mark_oauth_credential_invalid(credential_id=db_cred.id)
+                await repo.update_ingress_config_status(
+                    household_id=household_id,
+                    status="needs_reconnect",
+                    error=plain_error,
+                    provider="gmail",
+                )
+                raise OAuthDecryptionError(plain_error) from e
 
-        # Fallback to token file
+        # Fallback to token file ONLY when there is no DB credential record at all
         token_path = os.getenv("GMAIL_TOKEN_PATH", "token.json")
         if os.path.exists(token_path):
             logger.info("Using file fallback token at %s for household=%s", token_path, household_id)

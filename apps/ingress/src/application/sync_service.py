@@ -10,14 +10,17 @@ from googleapiclient.errors import HttpError
 
 from apps.ingress.src.domain.interfaces import AlertParser, EmailClient, IngressRepository
 from apps.ingress.src.domain.models import IngressJob
-from apps.ingress.src.infrastructure.gmail.client import GmailClient
+from apps.ingress.src.infrastructure.gmail.client import (
+    GmailClient,
+    OAuthDecryptionError,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def is_auth_error(exc: Exception) -> bool:
-    """Check if exception represents an OAuth token revocation or auth failure."""
-    if isinstance(exc, RefreshError):
+    """Check if exception represents an OAuth token revocation, auth failure, or decrypt failure."""
+    if isinstance(exc, (RefreshError, OAuthDecryptionError)):
         return True
     if isinstance(exc, HttpError):
         if getattr(exc, "status_code", None) in (401, 403) or (
@@ -25,7 +28,12 @@ def is_auth_error(exc: Exception) -> bool:
         ):
             return True
     err_str = str(exc).lower()
-    if "invalid_grant" in err_str or "token has been expired or revoked" in err_str:
+    if (
+        "invalid_grant" in err_str
+        or "token has been expired or revoked" in err_str
+        or "reconnection required" in err_str
+        or "failed to decrypt" in err_str
+    ):
         return True
     return False
 
@@ -47,27 +55,34 @@ class IngressSyncService:
         """Executes a single ingress synchronization job for a household."""
         logger.info("Executing ingress job for household=%s user=%s", job.household_id, job.user_id)
 
-        if job.status == "needs_reconnect":
-            logger.info("Skipping household=%s in needs_reconnect state", job.household_id)
-            return {"success": False, "skipped": True, "reason": "needs_reconnect"}
-
-        # Resolve email client: use provided client or per-household client
-        client = self.email_client
-        if client is None:
-            client = await GmailClient.for_household(household_id=job.household_id, repo=self.repository)
-
-        if client is None:
-            logger.warning(
-                "No Gmail credentials available for household=%s. Skipping job without error.",
-                job.household_id,
-            )
-            return {"success": False, "skipped": True, "reason": "no_credentials"}
+        if job.status in ("needs_reconnect", "disconnected"):
+            logger.info("Skipping household=%s in %s state", job.household_id, job.status)
+            return {"success": False, "skipped": True, "reason": job.status}
 
         inserted_count = 0
         quarantined_count = 0
         skipped_count = 0
 
         try:
+            # Resolve email client: use provided client or per-household client
+            client = self.email_client
+            if client is None:
+                client = await GmailClient.for_household(household_id=job.household_id, repo=self.repository)
+
+            if client is None:
+                logger.warning(
+                    "No Gmail credentials available for household=%s. Skipping job without error.",
+                    job.household_id,
+                )
+                # Advance next_run_at with long backoff so due-job query does not busy-loop every 60s
+                await self.repository.mark_job_status(
+                    job_id=job.id,
+                    status="idle",
+                    interval_minutes=max(job.interval_minutes, 60),
+                    error="No Gmail credentials configured",
+                )
+                return {"success": False, "skipped": True, "reason": "no_credentials"}
+
             checkpoint = await self.repository.get_checkpoint(job.household_id)
             after_date = checkpoint.last_email_internal_date if checkpoint else None
 
@@ -128,7 +143,11 @@ class IngressSyncService:
 
         except Exception as e:
             if is_auth_error(e):
-                readable_error = "Gmail access revoked or expired. Reconnection required."
+                readable_error = (
+                    "Failed to decrypt stored credentials. Reconnection required."
+                    if isinstance(e, OAuthDecryptionError)
+                    else "Gmail access revoked or expired. Reconnection required."
+                )
                 logger.error(
                     "Auth failure for household=%s. Marking needs_reconnect: %s",
                     job.household_id,

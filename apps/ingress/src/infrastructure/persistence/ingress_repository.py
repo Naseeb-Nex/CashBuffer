@@ -30,7 +30,7 @@ class NativeIngressRepository(IngressRepository):
             FROM ingress_configs
             WHERE is_enabled = TRUE
               AND next_run_at <= CURRENT_TIMESTAMP
-              AND status NOT IN ('running', 'needs_reconnect')
+              AND status NOT IN ('running', 'needs_reconnect', 'disconnected')
             ORDER BY next_run_at ASC;
         """
         async with self.pool.connection() as conn:
