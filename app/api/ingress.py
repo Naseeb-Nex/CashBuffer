@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from app.api.auth import get_current_user
+from app.api.gmail_oauth import router as gmail_router
 from app.domain.ingress_schemas import (
     IngressConfigResponse,
     IngressStatusResponse,
@@ -15,6 +16,7 @@ from app.infrastructure.persistence.ingress_repository import (
 from app.services.ingress_control_service import IngressControlService
 
 router = APIRouter(prefix="/ingress", tags=["Ingress"])
+router.include_router(gmail_router)
 
 _default_in_memory_repo = InMemoryIngressRepository()
 

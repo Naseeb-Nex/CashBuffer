@@ -700,7 +700,7 @@ class NativeRepository:
         async with self.pool.connection() as conn:
             async with conn.cursor(row_factory=dict_row) as cur:
                 await cur.execute(
-                    "SELECT id, user_id, source, encrypted_access_token, encrypted_refresh_token, "
+                    "SELECT id, user_id, household_id, account_email, scopes, source, encrypted_access_token, encrypted_refresh_token, "
                     "expires_at, is_valid, created_at, updated_at FROM oauth_credentials "
                     "WHERE expires_at < %s AND is_valid = TRUE;",
                     (cutoff,),
@@ -725,6 +725,149 @@ class NativeRepository:
                         WHERE id = %s;
                         """,
                         (encrypted_access_token, expires_at, is_valid, cred_id),
+                    )
+
+    async def get_household_member_role(self, household_id: str, user_id: str) -> str | None:
+        """Fetch role of user in household ('owner', 'admin', 'member')."""
+        async with self.pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    "SELECT role FROM household_members WHERE household_id = %s AND user_id = %s LIMIT 1;",
+                    (household_id, user_id),
+                )
+                row = await cur.fetchone()
+                return str(row["role"]) if row else None
+
+    async def get_oauth_credential_by_household(
+        self, household_id: str, source: str = "gmail"
+    ) -> OAuthCredential | None:
+        async with self.pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT id, user_id, household_id, source, encrypted_access_token, encrypted_refresh_token,
+                           expires_at, is_valid, account_email, scopes, created_at, updated_at
+                    FROM oauth_credentials
+                    WHERE household_id = %s AND source = %s
+                    LIMIT 1;
+                    """,
+                    (household_id, source),
+                )
+                row = await cur.fetchone()
+                return self._row_to_oauth(row) if row else None
+
+    async def upsert_oauth_credential(
+        self,
+        user_id: str,
+        household_id: str,
+        source: str,
+        encrypted_access_token: str,
+        encrypted_refresh_token: str,
+        expires_at: datetime,
+        account_email: str | None = None,
+        scopes: list[str] | None = None,
+        is_valid: bool = True,
+    ) -> OAuthCredential:
+        async with self.pool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor(row_factory=dict_row) as cur:
+                    await cur.execute(
+                        """
+                        INSERT INTO oauth_credentials (
+                            user_id, household_id, source, encrypted_access_token, encrypted_refresh_token,
+                            expires_at, is_valid, account_email, scopes, created_at, updated_at
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        ON CONFLICT (household_id, source)
+                        DO UPDATE SET
+                            user_id = EXCLUDED.user_id,
+                            encrypted_access_token = EXCLUDED.encrypted_access_token,
+                            encrypted_refresh_token = CASE
+                                WHEN EXCLUDED.encrypted_refresh_token IS NOT NULL AND EXCLUDED.encrypted_refresh_token != ''
+                                THEN EXCLUDED.encrypted_refresh_token
+                                ELSE oauth_credentials.encrypted_refresh_token
+                            END,
+                            expires_at = EXCLUDED.expires_at,
+                            is_valid = EXCLUDED.is_valid,
+                            account_email = EXCLUDED.account_email,
+                            scopes = EXCLUDED.scopes,
+                            updated_at = CURRENT_TIMESTAMP
+                        RETURNING id, user_id, household_id, source, encrypted_access_token, encrypted_refresh_token,
+                                  expires_at, is_valid, account_email, scopes, created_at, updated_at;
+                        """,
+                        (
+                            user_id,
+                            household_id,
+                            source,
+                            encrypted_access_token,
+                            encrypted_refresh_token,
+                            expires_at,
+                            is_valid,
+                            account_email,
+                            scopes,
+                        ),
+                    )
+                    row = await cur.fetchone()
+                    return self._row_to_oauth(row)
+
+    async def disconnect_oauth_credential(self, household_id: str, source: str = "gmail") -> None:
+        async with self.pool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        """
+                        UPDATE oauth_credentials
+                        SET is_valid = FALSE, updated_at = CURRENT_TIMESTAMP
+                        WHERE household_id = %s AND source = %s;
+                        """,
+                        (household_id, source),
+                    )
+                    await cur.execute(
+                        """
+                        UPDATE ingress_configs
+                        SET is_enabled = FALSE, status = 'disconnected'
+                        WHERE household_id = %s AND provider = %s;
+                        """,
+                        (household_id, source),
+                    )
+
+    async def get_ingress_config_by_household(
+        self, household_id: str, provider: str = "gmail"
+    ) -> dict[str, Any] | None:
+        async with self.pool.connection() as conn:
+            async with conn.cursor(row_factory=dict_row) as cur:
+                await cur.execute(
+                    """
+                    SELECT id, household_id, user_id, provider, is_enabled, interval_minutes, last_run_at, next_run_at, status
+                    FROM ingress_configs
+                    WHERE household_id = %s AND provider = %s
+                    LIMIT 1;
+                    """,
+                    (household_id, provider),
+                )
+                row = await cur.fetchone()
+                return dict(row) if row else None
+
+    async def ensure_ingress_config_enabled(
+        self, household_id: str, user_id: str, provider: str = "gmail", interval_minutes: int = 60
+    ) -> None:
+        async with self.pool.connection() as conn:
+            async with conn.transaction():
+                async with conn.cursor() as cur:
+                    await cur.execute(
+                        """
+                        INSERT INTO ingress_configs (
+                            household_id, user_id, provider, is_enabled, interval_minutes, status, next_run_at
+                        )
+                        VALUES (%s, %s, %s, TRUE, %s, 'idle', CURRENT_TIMESTAMP)
+                        ON CONFLICT (household_id, provider)
+                        DO UPDATE SET
+                            is_enabled = TRUE,
+                            status = 'idle',
+                            user_id = EXCLUDED.user_id,
+                            next_run_at = CURRENT_TIMESTAMP;
+                        """,
+                        (household_id, user_id, provider, interval_minutes),
                     )
 
     # -------------------------------------------------------------------------
@@ -811,8 +954,11 @@ class NativeRepository:
             encrypted_refresh_token=row["encrypted_refresh_token"],
             expires_at=row["expires_at"],
             is_valid=row["is_valid"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
+            household_id=str(row["household_id"]) if row.get("household_id") else None,
+            account_email=row.get("account_email"),
+            scopes=row.get("scopes"),
+            created_at=row.get("created_at"),
+            updated_at=row.get("updated_at"),
         )
 
     def _row_to_quarantine(self, row: dict[str, Any]) -> QuarantinedEmail:
