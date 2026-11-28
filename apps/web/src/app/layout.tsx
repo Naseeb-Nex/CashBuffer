@@ -11,7 +11,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "CashBuffer - Financial Management & Ingress",
+  title: "CashBuffer - Household Financial Management",
   description: "Clean Architecture Household Cash Flow & Expense Tracker with AI Assistant",
 };
 

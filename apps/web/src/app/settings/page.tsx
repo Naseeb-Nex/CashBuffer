@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { INGRESS_INTERVAL_OPTIONS } from "@/features/ingress/domain/referentials/ingress.referentials";
 import {
@@ -29,6 +29,36 @@ export default function SettingsPage() {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [noticeDismissed, setNoticeDismissed] = useState(false);
+
+  const syncingRef = useRef(false);
+  const noticeTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const clearNoticeTimer = useCallback(() => {
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+  }, []);
+
+  const showActionNotice = useCallback(
+    (msg: string) => {
+      clearNoticeTimer();
+      setNoticeDismissed(false);
+      setActionNotice(msg);
+      noticeTimerRef.current = setTimeout(() => {
+        setActionNotice(null);
+      }, 4000);
+    },
+    [clearNoticeTimer]
+  );
+
+  // Clear timers on unmount
+  useEffect(() => {
+    return () => {
+      clearNoticeTimer();
+    };
+  }, [clearNoticeTimer]);
 
   const connectionInfo = getEmailConnectionStatus(status || config);
   const executionBadge = getExecutionStatusBadge(status?.status || config?.status);
@@ -40,11 +70,12 @@ export default function SettingsPage() {
     if (!config || savingSchedule) return;
     setSavingSchedule(true);
     setActionError(null);
-    setActionNotice(null);
     try {
       const nextState = !isEnabled;
       await updateConfig({ isEnabled: nextState });
-      setActionNotice(nextState ? "Automated email checks enabled." : "Automated email checks paused.");
+      showActionNotice(
+        nextState ? "Automated email checks enabled." : "Automated email checks paused."
+      );
     } catch (err: unknown) {
       setActionError(sanitizeErrorMessage(err));
     } finally {
@@ -57,10 +88,9 @@ export default function SettingsPage() {
     if (!config || savingSchedule) return;
     setSavingSchedule(true);
     setActionError(null);
-    setActionNotice(null);
     try {
       await updateConfig({ intervalMinutes: newInterval });
-      setActionNotice("Check schedule updated.");
+      showActionNotice("Check schedule updated.");
     } catch (err: unknown) {
       setActionError(sanitizeErrorMessage(err));
     } finally {
@@ -69,15 +99,28 @@ export default function SettingsPage() {
   };
 
   const handleTriggerNow = async () => {
+    if (syncing || loading || syncingRef.current) return;
+    syncingRef.current = true;
     setActionError(null);
-    setActionNotice(null);
     try {
       await triggerSync();
-      setActionNotice("Email check completed.");
+      showActionNotice("Email check completed.");
     } catch (err: unknown) {
       setActionError(sanitizeErrorMessage(err));
+    } finally {
+      syncingRef.current = false;
     }
   };
+
+  const handleRefresh = async () => {
+    clearNoticeTimer();
+    setActionNotice(null);
+    setActionError(null);
+    setNoticeDismissed(false);
+    await refresh();
+  };
+
+  const displayedNotice = !noticeDismissed ? actionNotice || notice : null;
 
   return (
     <div className="app-container" style={{ maxWidth: "960px" }}>
@@ -91,7 +134,7 @@ export default function SettingsPage() {
         <div>
           <button
             type="button"
-            onClick={() => refresh()}
+            onClick={handleRefresh}
             disabled={loading || syncing}
             className="btn btn-secondary btn-sm"
             aria-label="Refresh settings status"
@@ -101,10 +144,38 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      {/* Action alerts and notices */}
-      {(notice || actionNotice) && (
-        <div role="status" aria-live="polite" className="notice-box">
-          {actionNotice || notice}
+      {/* Action alerts and notices with auto-dismiss and manual dismiss */}
+      {displayedNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="notice-box"
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "var(--space-md)",
+          }}
+        >
+          <span>{displayedNotice}</span>
+          <button
+            type="button"
+            onClick={() => {
+              clearNoticeTimer();
+              setActionNotice(null);
+              setNoticeDismissed(true);
+            }}
+            className="btn btn-secondary btn-sm"
+            style={{
+              minHeight: "26px",
+              padding: "2px 8px",
+              fontSize: "12px",
+              lineHeight: 1,
+            }}
+            aria-label="Dismiss notice"
+          >
+            ✕
+          </button>
         </div>
       )}
 
