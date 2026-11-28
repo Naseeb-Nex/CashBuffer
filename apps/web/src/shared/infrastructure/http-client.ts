@@ -1,17 +1,9 @@
 import { ApiError } from "../domain/errors.ts";
+import { clearTokenCache, resolveAccessToken } from "./token-resolver.ts";
 
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined | null>;
   token?: string;
-}
-
-function getStoredToken(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem("cashbuffer_token") || localStorage.getItem("auth_token");
-  } catch {
-    return null;
-  }
 }
 
 export class HttpClient {
@@ -47,10 +39,14 @@ export class HttpClient {
       }
     }
 
-    const activeToken =
-      token !== undefined
-        ? token
-        : (getStoredToken() || process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN || "dev-user");
+    let activeToken = token;
+    if (activeToken === undefined) {
+      if (typeof window !== "undefined") {
+        activeToken = (await resolveAccessToken()) || process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN || "dev-user";
+      } else {
+        activeToken = process.env.NEXT_PUBLIC_DEV_AUTH_TOKEN || "dev-user";
+      }
+    }
 
     const defaultHeaders: Record<string, string> = {
       "Accept": "application/json",
@@ -96,6 +92,10 @@ export class HttpClient {
 
         if (!message) {
           message = response.statusText || `HTTP request failed with status ${response.status}`;
+        }
+
+        if (response.status === 401) {
+          clearTokenCache();
         }
 
         throw new ApiError(message, response.status, errorData);

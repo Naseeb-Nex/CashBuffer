@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useKindeBrowserClient, LoginLink, LogoutLink } from "@kinde-oss/kinde-auth-nextjs";
+import { clearTokenCache } from "../token-resolver.ts";
 
 export function HeaderNav() {
   const pathname = usePathname();
@@ -47,7 +48,10 @@ export function HeaderNav() {
               <span className="user-email-badge" title={user?.email || "Authenticated"}>
                 {user?.email || user?.given_name || "Account"}
               </span>
-              <LogoutLink className="btn btn-secondary btn-sm">
+              <LogoutLink
+                className="btn btn-secondary btn-sm"
+                onClick={() => clearTokenCache()}
+              >
                 Logout
               </LogoutLink>
             </div>
