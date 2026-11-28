@@ -52,6 +52,11 @@ async def get_current_user(
         )
 
     if settings.KINDE_DOMAIN:
+        if not settings.KINDE_AUDIENCE:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="KINDE_AUDIENCE is not configured on the server",
+            )
         try:
             jwks = await get_jwks()
             unverified_header = jwt.get_unverified_header(token)
@@ -72,12 +77,21 @@ async def get_current_user(
                     detail="Unable to find appropriate key in JWKS",
                 )
 
+            clean_domain = settings.KINDE_DOMAIN.rstrip("/")
+            expected_issuers = [clean_domain, f"{clean_domain}/"]
+
             payload = jwt.decode(
                 token,
                 key=jwt.algorithms.RSAAlgorithm.from_jwk(rsa_key),
                 algorithms=["RS256"],
-                audience=settings.KINDE_CLIENT_ID or None,
-                options={"verify_aud": bool(settings.KINDE_CLIENT_ID)},
+                audience=settings.KINDE_AUDIENCE,
+                issuer=expected_issuers,
+                options={
+                    "verify_aud": True,
+                    "verify_iss": True,
+                    "verify_exp": True,
+                    "verify_signature": True,
+                },
             )
             user_id = payload.get("sub")
             if not user_id:
