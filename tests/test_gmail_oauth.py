@@ -301,6 +301,153 @@ async def test_callback_missing_refresh_token_fallback_and_error(
         assert decrypt_key(cred.encrypted_access_token) == "mock_new_access_token"
 
 @pytest.mark.asyncio
+async def test_callback_token_exchange_network_error(
+    client: AsyncClient,
+    native_repo: NativeRepository,
+    unique_user_alice: str,
+):
+    """Callback handles network errors during token exchange gracefully."""
+    user = await native_repo.get_or_create_user(unique_user_alice)
+    household_id = await native_repo.get_primary_household_id(user.id)
+    service = GmailOAuthService(native_repo)
+    state = service.generate_state(user_id=user.id, household_id=household_id)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    mock_client.post = AsyncMock(side_effect=httpx.ConnectError("Network unreachable"))
+
+    with patch("app.services.gmail_oauth_service.httpx.AsyncClient", return_value=mock_client):
+        res = await client.get(
+            f"/api/v1/ingress/gmail/callback?code=some_code&state={state}",
+            follow_redirects=False,
+        )
+        assert res.status_code == 302
+        assert res.headers["location"] == f"{settings.WEB_BASE_URL.rstrip('/')}/settings?error=token_exchange_failed"
+
+@pytest.mark.asyncio
+async def test_callback_token_exchange_http_error(
+    client: AsyncClient,
+    native_repo: NativeRepository,
+    unique_user_alice: str,
+):
+    """Callback handles HTTP 400 from Google token exchange."""
+    user = await native_repo.get_or_create_user(unique_user_alice)
+    household_id = await native_repo.get_primary_household_id(user.id)
+    service = GmailOAuthService(native_repo)
+    state = service.generate_state(user_id=user.id, household_id=household_id)
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    mock_client.post = AsyncMock(
+        return_value=httpx.Response(
+            400,
+            json={"error": "invalid_grant"},
+            request=httpx.Request("POST", "https://oauth2.googleapis.com/token"),
+        )
+    )
+
+    with patch("app.services.gmail_oauth_service.httpx.AsyncClient", return_value=mock_client):
+        res = await client.get(
+            f"/api/v1/ingress/gmail/callback?code=invalid_code&state={state}",
+            follow_redirects=False,
+        )
+        assert res.status_code == 302
+        assert res.headers["location"] == f"{settings.WEB_BASE_URL.rstrip('/')}/settings?error=token_exchange_failed"
+
+@pytest.mark.asyncio
+async def test_callback_userinfo_failure_resilient(
+    client: AsyncClient,
+    native_repo: NativeRepository,
+    unique_user_alice: str,
+):
+    """Callback succeeds even if Google userinfo endpoint fails (account_email defaults to None)."""
+    user = await native_repo.get_or_create_user(unique_user_alice)
+    household_id = await native_repo.get_primary_household_id(user.id)
+    service = GmailOAuthService(native_repo)
+    state = service.generate_state(user_id=user.id, household_id=household_id)
+
+    mock_token_resp = httpx.Response(
+        status_code=200,
+        json={
+            "access_token": "token_userinfo_fail",
+            "refresh_token": "refresh_userinfo_fail",
+            "expires_in": 3600,
+        },
+        request=httpx.Request("POST", "https://oauth2.googleapis.com/token"),
+    )
+
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    mock_client.post = AsyncMock(return_value=mock_token_resp)
+    mock_client.get = AsyncMock(side_effect=httpx.ConnectTimeout("Userinfo timed out"))
+
+    with patch("app.services.gmail_oauth_service.httpx.AsyncClient", return_value=mock_client):
+        res = await client.get(
+            f"/api/v1/ingress/gmail/callback?code=valid_code&state={state}",
+            follow_redirects=False,
+        )
+        assert res.status_code == 302
+        assert res.headers["location"] == f"{settings.WEB_BASE_URL.rstrip('/')}/settings?gmail=connected"
+
+        cred = await native_repo.get_oauth_credential_by_household(household_id, "gmail")
+        assert cred is not None
+        assert cred.account_email is None
+
+@pytest.mark.asyncio
+async def test_migration_007_backfills_preexisting_null_household_id(native_repo: NativeRepository):
+    """Verify migration 007 backfill logic updates pre-existing rows where household_id is NULL."""
+    import uuid
+    unique_suffix = uuid.uuid4().hex[:8]
+    test_user_id = f"test_user_backfill_{unique_suffix}"
+    test_source = f"source_backfill_{unique_suffix}"
+
+    user = await native_repo.get_or_create_user(test_user_id)
+    household_id = await native_repo.get_primary_household_id(user.id)
+
+    # Insert raw row with household_id NULL
+    async with native_repo.pool.connection() as conn:
+        async with conn.transaction():
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    INSERT INTO oauth_credentials (
+                        user_id, household_id, source, encrypted_access_token, encrypted_refresh_token,
+                        expires_at, is_valid, created_at, updated_at
+                    )
+                    VALUES (%s, NULL, %s, 'enc_a', 'enc_r', CURRENT_TIMESTAMP + interval '1 hour', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+                    """,
+                    (user.id, test_source),
+                )
+
+                # Re-run backfill statement as in migration 007
+                await cur.execute(
+                    """
+                    UPDATE oauth_credentials oc
+                    SET household_id = hm.household_id
+                    FROM household_members hm
+                    WHERE oc.user_id = hm.user_id
+                      AND oc.household_id IS NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM oauth_credentials existing
+                          WHERE existing.household_id = hm.household_id
+                            AND existing.source = oc.source
+                      );
+                    """
+                )
+
+                # Verify household_id is now populated
+                await cur.execute(
+                    "SELECT household_id FROM oauth_credentials WHERE user_id = %s AND source = %s;",
+                    (user.id, test_source),
+                )
+                row = await cur.fetchone()
+                assert row is not None
+                assert str(row[0]) == household_id
+
+@pytest.mark.asyncio
 async def test_status_endpoint_states(
     client: AsyncClient,
     native_repo: NativeRepository,
