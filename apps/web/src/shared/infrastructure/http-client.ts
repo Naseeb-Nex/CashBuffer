@@ -1,5 +1,5 @@
 import { ApiError } from "../domain/errors.ts";
-import { resolveAccessToken } from "./token-resolver.ts";
+import { clearTokenCache, resolveAccessToken } from "./token-resolver.ts";
 
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined | null>;
@@ -92,6 +92,10 @@ export class HttpClient {
 
         if (!message) {
           message = response.statusText || `HTTP request failed with status ${response.status}`;
+        }
+
+        if (response.status === 401) {
+          clearTokenCache();
         }
 
         throw new ApiError(message, response.status, errorData);

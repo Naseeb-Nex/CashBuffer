@@ -208,3 +208,65 @@ async def test_empty_token():
         await get_current_user(credentials)
     assert exc_info.value.status_code == 401
     assert "Empty bearer token" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_kinde_auth_wrong_alg(mock_jwks):
+    # Test algorithm confusion: signing with HS256 instead of RS256
+    secret = "a" * 32
+    token = jwt.encode(
+        {
+            "sub": "user_kinde_123",
+            "aud": "https://api.cashbuffer.local",
+            "iss": "https://test.kinde.com",
+            "exp": int(time.time()) + 3600,
+        },
+        secret,
+        algorithm="HS256",
+        headers={"kid": "test-kid-1"},
+    )
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+    with patch.object(settings, "KINDE_DOMAIN", "https://test.kinde.com"), patch.object(
+        settings, "KINDE_AUDIENCE", "https://api.cashbuffer.local"
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_user(credentials)
+        assert exc_info.value.status_code == 401
+        assert "Token verification failed" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_jwks_rotation_cache_miss_refetches():
+    # Simulate first JWKS having only kid-old
+    old_jwk = dict(_jwk)
+    old_jwk["kid"] = "kid-old"
+
+    # Second JWKS having both kid-old and kid-new
+    new_jwk = dict(_jwk)
+    new_jwk["kid"] = "kid-new"
+
+    mock_client = AsyncMock()
+    mock_resp_1 = AsyncMock(status_code=200, json=lambda: {"keys": [old_jwk]})
+    mock_resp_2 = AsyncMock(status_code=200, json=lambda: {"keys": [old_jwk, new_jwk]})
+    mock_client.get.side_effect = [mock_resp_1, mock_resp_2]
+
+    import app.api.auth as auth_mod
+    auth_mod._JWKS = None
+    auth_mod._JWKS_LAST_FETCH_TIME = 0.0
+
+    with patch("httpx.AsyncClient") as mock_client_cls, patch.object(
+        settings, "KINDE_DOMAIN", "https://test.kinde.com"
+    ), patch.object(settings, "KINDE_AUDIENCE", "https://api.cashbuffer.local"), patch(
+        "app.api.auth._JWKS_MIN_REFETCH_INTERVAL", 0.0
+    ):
+        mock_client_cls.return_value.__aenter__.return_value = mock_client
+
+        token = _create_kinde_token(kid="kid-new")
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+        sub = await get_current_user(credentials)
+        assert sub == "user_kinde_123"
+        # Should have fetched twice: initial fetch and rotated key refetch
+        assert mock_client.get.call_count == 2
+

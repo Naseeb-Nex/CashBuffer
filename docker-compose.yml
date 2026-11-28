@@ -51,6 +51,7 @@ services:
       KINDE_DOMAIN: ${KINDE_DOMAIN:-}
       KINDE_CLIENT_ID: ${KINDE_CLIENT_ID:-}
       KINDE_CLIENT_SECRET: ${KINDE_CLIENT_SECRET:-}
+      KINDE_AUDIENCE: ${KINDE_AUDIENCE:-https://api.cashbuffer.local}
     depends_on:
       migration:
         condition: service_completed_successfully
@@ -121,6 +122,7 @@ services:
     environment:
       API_INTERNAL_URL: http://api:8000
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      KINDE_AUDIENCE: ${KINDE_AUDIENCE:-https://api.cashbuffer.local}
     depends_on:
       - api
     restart: unless-stopped
