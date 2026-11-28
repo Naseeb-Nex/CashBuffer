@@ -49,3 +49,22 @@ class SyncCheckpoint:
     last_email_internal_date: int | None = None
     total_processed: int = 0
     updated_at: datetime | None = None
+
+
+@dataclass
+class OAuthCredential:
+    """OAuth credential entity loaded from oauth_credentials table."""
+
+    id: int
+    user_id: uuid.UUID
+    household_id: uuid.UUID | None
+    source: str
+    encrypted_access_token: str
+    encrypted_refresh_token: str
+    expires_at: datetime
+    is_valid: bool = True
+    account_email: str | None = None
+    scopes: list[str] | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+

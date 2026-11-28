@@ -28,12 +28,11 @@ async def main() -> None:
 
     pool = await get_ingress_db_pool()
     repo = NativeIngressRepository(pool)
-    email_client = GmailClient()
     parser = AxisBankParser()
 
     sync_service = IngressSyncService(
         repository=repo,
-        email_client=email_client,
+        email_client=None,
         parser=parser,
     )
     scheduler = IngressSchedulerService(

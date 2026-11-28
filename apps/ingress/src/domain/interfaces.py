@@ -6,7 +6,12 @@ from abc import ABC, abstractmethod
 from typing import Any
 import uuid
 
-from apps.ingress.src.domain.models import IngressJob, ParsedAlert, SyncCheckpoint
+from apps.ingress.src.domain.models import (
+    IngressJob,
+    OAuthCredential,
+    ParsedAlert,
+    SyncCheckpoint,
+)
 
 class EmailClient(ABC):
     """Abstract interface for email fetching clients (e.g. Gmail)."""
@@ -90,3 +95,45 @@ class IngressRepository(ABC):
     ) -> None:
         """Update job status and set next_run_at."""
         pass
+
+    @abstractmethod
+    async def get_oauth_credential(
+        self,
+        household_id: uuid.UUID,
+        source: str = "gmail",
+    ) -> OAuthCredential | None:
+        """Fetch valid OAuth credential for a household and source."""
+        pass
+
+    @abstractmethod
+    async def update_oauth_credential(
+        self,
+        credential_id: int,
+        encrypted_access_token: str,
+        expires_at: datetime,
+        encrypted_refresh_token: str | None = None,
+    ) -> None:
+        """Update tokens and expiration for an OAuth credential."""
+        pass
+
+    @abstractmethod
+    async def mark_oauth_credential_invalid(
+        self,
+        credential_id: int | None = None,
+        household_id: uuid.UUID | None = None,
+        source: str = "gmail",
+    ) -> None:
+        """Mark an OAuth credential as invalid."""
+        pass
+
+    @abstractmethod
+    async def update_ingress_config_status(
+        self,
+        household_id: uuid.UUID,
+        status: str,
+        error: str | None = None,
+        provider: str = "gmail",
+    ) -> None:
+        """Update ingress config status and last_error for a household and provider."""
+        pass
+

@@ -71,6 +71,9 @@ class OAuthCredential:
     encrypted_refresh_token: str
     expires_at: datetime
     is_valid: bool = True
+    household_id: str | None = None
+    account_email: str | None = None
+    scopes: list[str] | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # Google OAuth Configurations
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/ingress/gmail/callback"
+    GMAIL_OAUTH_STATE_SECRET: str = ""
+    WEB_BASE_URL: str = "http://localhost:3001"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
