@@ -864,7 +864,8 @@ class NativeRepository:
                         DO UPDATE SET
                             is_enabled = TRUE,
                             status = 'idle',
-                            user_id = EXCLUDED.user_id;
+                            user_id = EXCLUDED.user_id,
+                            next_run_at = CURRENT_TIMESTAMP;
                         """,
                         (household_id, user_id, provider, interval_minutes),
                     )

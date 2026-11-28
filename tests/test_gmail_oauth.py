@@ -397,55 +397,217 @@ async def test_callback_userinfo_failure_resilient(
         assert cred.account_email is None
 
 @pytest.mark.asyncio
-async def test_migration_007_backfills_preexisting_null_household_id(native_repo: NativeRepository):
-    """Verify migration 007 backfill logic updates pre-existing rows where household_id is NULL."""
+async def test_migration_007_backfill_collision_cases_and_rerun(native_repo: NativeRepository):
+    """
+    Comprehensive verification of migration 007 backfill and unique index safety:
+    - User in two households (owner priority over member)
+    - Two users in same household with competing credentials
+    - Duplicate credential rows for single user
+    - User with no household membership
+    - Rerun migration twice cleanly (idempotence)
+    """
+    import os
     import uuid
-    unique_suffix = uuid.uuid4().hex[:8]
-    test_user_id = f"test_user_backfill_{unique_suffix}"
-    test_source = f"source_backfill_{unique_suffix}"
 
-    user = await native_repo.get_or_create_user(test_user_id)
+    suffix = uuid.uuid4().hex[:6]
+    src_multi_hh = f"src_mhh_{suffix}"
+    src_shared = f"src_sh_{suffix}"
+    src_dup = f"src_dup_{suffix}"
+    src_no_hh = f"src_nohh_{suffix}"
+
+    async with native_repo.pool.connection() as conn:
+        async with conn.transaction():
+            async with conn.cursor() as cur:
+                # 1. Setup User 1 in two households: H1 (member) and H2 (owner)
+                u1 = str(uuid.uuid4())
+                h1_member = str(uuid.uuid4())
+                h2_owner = str(uuid.uuid4())
+                await cur.execute("INSERT INTO users (id, idp_user_id, email) VALUES (%s, %s, %s);", (u1, f"u1_{suffix}", f"u1_{suffix}@test.com"))
+                await cur.execute("INSERT INTO households (id, name) VALUES (%s, 'H1 Member'), (%s, 'H2 Owner');", (h1_member, h2_owner))
+                await cur.execute("INSERT INTO household_members (household_id, user_id, role, joined_at) VALUES (%s, %s, 'member', CURRENT_TIMESTAMP - interval '10 days');", (h1_member, u1))
+                await cur.execute("INSERT INTO household_members (household_id, user_id, role, joined_at) VALUES (%s, %s, 'owner', CURRENT_TIMESTAMP - interval '5 days');", (h2_owner, u1))
+                await cur.execute(
+                    """
+                    INSERT INTO oauth_credentials (user_id, household_id, source, encrypted_access_token, encrypted_refresh_token, expires_at, is_valid, updated_at)
+                    VALUES (%s, NULL, %s, 'tok', 'ref', CURRENT_TIMESTAMP + interval '1h', TRUE, CURRENT_TIMESTAMP)
+                    RETURNING id;
+                    """,
+                    (u1, src_multi_hh),
+                )
+                c_u1_id = (await cur.fetchone())[0]
+
+                # 2. Setup User 2 and User 3 sharing household H3 with competing credentials
+                u2 = str(uuid.uuid4())
+                u3 = str(uuid.uuid4())
+                h3_shared = str(uuid.uuid4())
+                await cur.execute("INSERT INTO users (id, idp_user_id, email) VALUES (%s, %s, %s), (%s, %s, %s);", (u2, f"u2_{suffix}", f"u2_{suffix}@test.com", u3, f"u3_{suffix}", f"u3_{suffix}@test.com"))
+                await cur.execute("INSERT INTO households (id, name) VALUES (%s, 'H3 Shared');", (h3_shared,))
+                await cur.execute("INSERT INTO household_members (household_id, user_id, role, joined_at) VALUES (%s, %s, 'owner', CURRENT_TIMESTAMP - interval '2 days');", (h3_shared, u2))
+                await cur.execute("INSERT INTO household_members (household_id, user_id, role, joined_at) VALUES (%s, %s, 'member', CURRENT_TIMESTAMP - interval '1 day');", (h3_shared, u3))
+                # u2 older cred, u3 newer valid cred
+                await cur.execute(
+                    """
+                    INSERT INTO oauth_credentials (user_id, household_id, source, encrypted_access_token, encrypted_refresh_token, expires_at, is_valid, updated_at)
+                    VALUES (%s, NULL, %s, 'tok_old', 'ref_old', CURRENT_TIMESTAMP + interval '1h', TRUE, CURRENT_TIMESTAMP - interval '2 days')
+                    RETURNING id;
+                    """,
+                    (u2, src_shared),
+                )
+                c_u2_id = (await cur.fetchone())[0]
+                await cur.execute(
+                    """
+                    INSERT INTO oauth_credentials (user_id, household_id, source, encrypted_access_token, encrypted_refresh_token, expires_at, is_valid, updated_at)
+                    VALUES (%s, NULL, %s, 'tok_new', 'ref_new', CURRENT_TIMESTAMP + interval '1h', TRUE, CURRENT_TIMESTAMP - interval '1 hour')
+                    RETURNING id;
+                    """,
+                    (u3, src_shared),
+                )
+                c_u3_id = (await cur.fetchone())[0]
+
+                # 3. Setup User 4 with duplicate credentials for same source
+                u4 = str(uuid.uuid4())
+                h4_dup = str(uuid.uuid4())
+                await cur.execute("INSERT INTO users (id, idp_user_id, email) VALUES (%s, %s, %s);", (u4, f"u4_{suffix}", f"u4_{suffix}@test.com"))
+                await cur.execute("INSERT INTO households (id, name) VALUES (%s, 'H4 Dup');", (h4_dup,))
+                await cur.execute("INSERT INTO household_members (household_id, user_id, role, joined_at) VALUES (%s, %s, 'owner', CURRENT_TIMESTAMP);", (h4_dup, u4))
+                # Older cred (invalid)
+                await cur.execute(
+                    """
+                    INSERT INTO oauth_credentials (user_id, household_id, source, encrypted_access_token, encrypted_refresh_token, expires_at, is_valid, updated_at)
+                    VALUES (%s, NULL, %s, 'tok_dup_old', 'ref_dup_old', CURRENT_TIMESTAMP - interval '1h', FALSE, CURRENT_TIMESTAMP - interval '5 days')
+                    RETURNING id;
+                    """,
+                    (u4, src_dup),
+                )
+                c_u4_old_id = (await cur.fetchone())[0]
+                # Newer cred (valid)
+                await cur.execute(
+                    """
+                    INSERT INTO oauth_credentials (user_id, household_id, source, encrypted_access_token, encrypted_refresh_token, expires_at, is_valid, updated_at)
+                    VALUES (%s, NULL, %s, 'tok_dup_new', 'ref_dup_new', CURRENT_TIMESTAMP + interval '1h', TRUE, CURRENT_TIMESTAMP)
+                    RETURNING id;
+                    """,
+                    (u4, src_dup),
+                )
+                c_u4_new_id = (await cur.fetchone())[0]
+
+                # 4. Setup User 5 with no household membership
+                u5 = str(uuid.uuid4())
+                await cur.execute("INSERT INTO users (id, idp_user_id, email) VALUES (%s, %s, %s);", (u5, f"u5_{suffix}", f"u5_{suffix}@test.com"))
+                await cur.execute(
+                    """
+                    INSERT INTO oauth_credentials (user_id, household_id, source, encrypted_access_token, encrypted_refresh_token, expires_at, is_valid, updated_at)
+                    VALUES (%s, NULL, %s, 'tok_nohh', 'ref_nohh', CURRENT_TIMESTAMP + interval '1h', TRUE, CURRENT_TIMESTAMP)
+                    RETURNING id;
+                    """,
+                    (u5, src_no_hh),
+                )
+                c_u5_id = (await cur.fetchone())[0]
+
+    # Read migration 007 SQL content
+    migration_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)), "migrations", "007_gmail_oauth.sql"
+    )
+    with open(migration_path, "r", encoding="utf-8") as f:
+        migration_sql = f.read()
+
+    # Apply migration first time
+    async with native_repo.pool.connection() as conn:
+        async with conn.transaction():
+            async with conn.cursor() as cur:
+                await cur.execute(migration_sql)
+
+    # Verify backfill results:
+    async with native_repo.pool.connection() as conn:
+        async with conn.cursor() as cur:
+            # 1. User in two households -> assigned to H2 (owner role)
+            await cur.execute("SELECT household_id FROM oauth_credentials WHERE id = %s;", (c_u1_id,))
+            res1 = (await cur.fetchone())[0]
+            assert str(res1) == h2_owner
+
+            # 2. Shared household -> exactly ONE winner assigned to H3, other remains NULL
+            await cur.execute("SELECT id, household_id FROM oauth_credentials WHERE id IN (%s, %s);", (c_u2_id, c_u3_id))
+            shared_rows = await cur.fetchall()
+            assigned_h3 = [r for r in shared_rows if r[1] is not None]
+            unassigned_h3 = [r for r in shared_rows if r[1] is None]
+            assert len(assigned_h3) == 1
+            assert str(assigned_h3[0][1]) == h3_shared
+            assert len(unassigned_h3) == 1
+
+            # 3. Duplicate rows for single user -> only the winning row is assigned H4, the other remains NULL
+            await cur.execute("SELECT id, household_id FROM oauth_credentials WHERE id IN (%s, %s);", (c_u4_old_id, c_u4_new_id))
+            dup_rows = await cur.fetchall()
+            assigned_h4 = [r for r in dup_rows if r[1] is not None]
+            unassigned_h4 = [r for r in dup_rows if r[1] is None]
+            assert len(assigned_h4) == 1
+            assert assigned_h4[0][0] == c_u4_new_id
+            assert str(assigned_h4[0][1]) == h4_dup
+            assert len(unassigned_h4) == 1
+            assert unassigned_h4[0][0] == c_u4_old_id
+
+            # 4. User without household -> remains NULL
+            await cur.execute("SELECT household_id FROM oauth_credentials WHERE id = %s;", (c_u5_id,))
+            res5 = (await cur.fetchone())[0]
+            assert res5 is None
+
+    # Apply migration SECOND time -> verify 100% idempotent and zero crashes
+    async with native_repo.pool.connection() as conn:
+        async with conn.transaction():
+            async with conn.cursor() as cur:
+                await cur.execute(migration_sql)
+
+    # Re-verify results unchanged after second run
+    async with native_repo.pool.connection() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT household_id FROM oauth_credentials WHERE id = %s;", (c_u1_id,))
+            assert str((await cur.fetchone())[0]) == h2_owner
+            await cur.execute("SELECT household_id FROM oauth_credentials WHERE id = %s;", (c_u5_id,))
+            assert (await cur.fetchone())[0] is None
+
+@pytest.mark.asyncio
+async def test_ensure_ingress_config_enabled_resets_backoff_delay(native_repo: NativeRepository):
+    """
+    Verify ensure_ingress_config_enabled resets next_run_at to CURRENT_TIMESTAMP and status to idle,
+    eliminating the 60-minute scheduler delay gap after Gmail connect / reconnect.
+    """
+    import datetime
+    import uuid
+
+    suffix = uuid.uuid4().hex[:6]
+    user = await native_repo.get_or_create_user(f"backoff_test_{suffix}")
     household_id = await native_repo.get_primary_household_id(user.id)
 
-    # Insert raw row with household_id NULL
+    # Simulate PR 28 backoff: next_run_at set 60 minutes in future with needs_reconnect status
+    future_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=60)
     async with native_repo.pool.connection() as conn:
         async with conn.transaction():
             async with conn.cursor() as cur:
                 await cur.execute(
                     """
-                    INSERT INTO oauth_credentials (
-                        user_id, household_id, source, encrypted_access_token, encrypted_refresh_token,
-                        expires_at, is_valid, created_at, updated_at
+                    INSERT INTO ingress_configs (
+                        household_id, user_id, provider, is_enabled, interval_minutes, status, next_run_at
                     )
-                    VALUES (%s, NULL, %s, 'enc_a', 'enc_r', CURRENT_TIMESTAMP + interval '1 hour', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+                    VALUES (%s, %s, 'gmail', FALSE, 60, 'needs_reconnect', %s)
+                    ON CONFLICT (household_id, provider) DO UPDATE SET
+                        is_enabled = FALSE,
+                        status = 'needs_reconnect',
+                        next_run_at = EXCLUDED.next_run_at;
                     """,
-                    (user.id, test_source),
+                    (household_id, user.id, future_time),
                 )
 
-                # Re-run backfill statement as in migration 007
-                await cur.execute(
-                    """
-                    UPDATE oauth_credentials oc
-                    SET household_id = hm.household_id
-                    FROM household_members hm
-                    WHERE oc.user_id = hm.user_id
-                      AND oc.household_id IS NULL
-                      AND NOT EXISTS (
-                          SELECT 1 FROM oauth_credentials existing
-                          WHERE existing.household_id = hm.household_id
-                            AND existing.source = oc.source
-                      );
-                    """
-                )
+    # User connects/reconnects Gmail -> ensure_ingress_config_enabled called
+    await native_repo.ensure_ingress_config_enabled(household_id=household_id, user_id=user.id, provider="gmail")
 
-                # Verify household_id is now populated
-                await cur.execute(
-                    "SELECT household_id FROM oauth_credentials WHERE user_id = %s AND source = %s;",
-                    (user.id, test_source),
-                )
-                row = await cur.fetchone()
-                assert row is not None
-                assert str(row[0]) == household_id
+    # Verify next_run_at is reset to current time and status is idle
+    config = await native_repo.get_ingress_config_by_household(household_id, "gmail")
+    assert config is not None
+    assert config["is_enabled"] is True
+    assert config["status"] == "idle"
+
+    # next_run_at must be reset to now (<= now + 5 seconds), NOT 60 minutes in future
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    assert config["next_run_at"] <= now_utc + datetime.timedelta(seconds=5)
 
 @pytest.mark.asyncio
 async def test_status_endpoint_states(
